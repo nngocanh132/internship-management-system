@@ -1,19 +1,20 @@
 <?php
+// =========================================
+// DATABASE CONNECTION CONFIGURATION
+// =========================================
 
-$host = "localhost";
-$username = "root";
-$password = "";
-$database = "internship_system";
+define('DB_HOST', 'localhost');
+define('DB_USER', 'root');
+define('DB_PASS', '');
+define('DB_NAME', 'internship_system');
 
-$conn = new mysqli(
-    $host,
-    $username,
-    $password,
-    $database
-);
+$conn = new mysqli(DB_HOST, DB_USER, DB_PASS, DB_NAME);
 
 if ($conn->connect_error) {
-    die("Connection failed: " . $conn->connect_error);
+    die(json_encode([
+        'success' => false,
+        'message' => 'Connection failed: ' . $conn->connect_error
+    ]));
 }
 
-?>
+$conn->set_charset('utf8mb4');
