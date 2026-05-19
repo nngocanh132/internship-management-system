@@ -11,11 +11,24 @@ function sanitize($data) {
 }
 
 /**
- * Redirect to a URL
+ * Redirect to an absolute URL
  */
 function redirect($url) {
     header("Location: $url");
     exit();
+}
+
+/**
+ * Get base URL to /internship_system (absolute path portion)
+ * e.g. /internship-management-system/internship_system
+ */
+function getBaseUrl() {
+    $script = str_replace('\\', '/', $_SERVER['SCRIPT_NAME']);
+    $pos    = strpos($script, '/internship_system');
+    if ($pos !== false) {
+        return substr($script, 0, $pos) . '/internship_system';
+    }
+    return '/internship_system';
 }
 
 /**
@@ -40,7 +53,7 @@ function getFlash() {
 function showFlash() {
     $flash = getFlash();
     if ($flash) {
-        $type = $flash['type'];
+        $type  = $flash['type'];
         $styles = [
             'success' => 'background:#f0fdf4;color:#166534;border-left:4px solid #22c55e;',
             'error'   => 'background:#fef2f2;color:#991b1b;border-left:4px solid #B57B66;',
@@ -89,12 +102,11 @@ function isSchool() {
 }
 
 /**
- * Require login — redirect if not
+ * Require login — redirect to login page if not authenticated
  */
 function requireLogin() {
     if (!isLoggedIn()) {
-        $base = getBaseUrl();
-        redirect($base . '/auth/login.php');
+        redirect(getBaseUrl() . '/auth/login.php');
     }
 }
 
@@ -108,13 +120,4 @@ function requireRole($roles) {
         setFlash('error', 'Bạn không có quyền truy cập trang này.');
         redirect(getBaseUrl() . '/index.php');
     }
-}
-
-/**
- * Get base URL to /internship_system using SCRIPT_NAME (URL path, not filesystem)
- */
-function getBaseUrl() {
-    $script = str_replace('\\', '/', $_SERVER['SCRIPT_NAME']);
-    $pos    = strpos($script, '/internship_system');
-    return ($pos !== false) ? substr($script, 0, $pos) . '/internship_system' : '/internship_system';
 }
