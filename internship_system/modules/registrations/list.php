@@ -86,7 +86,7 @@ if (isset($_GET['delete'])) {
 $status_f = isset($_GET['status']) ? sanitize($_GET['status']) : '';
 
 $sql = "SELECT r.*, u.full_name AS student_name, u.student_code,
-               p.title AS position_title, c.company_name
+               p.title AS position_title, c.name AS company_name
         FROM internship_registrations r
         JOIN users u ON r.student_id = u.user_id
         JOIN internship_positions p ON r.position_id = p.position_id

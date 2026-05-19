@@ -13,9 +13,10 @@ if (isset($_GET['delete'])) {
 }
 
 $sql = "SELECT j.*, u.full_name AS student_name, u.student_code,
-               p.title AS position_title, c.company_name
+               p.title AS position_title, c.name AS company_name
         FROM weekly_journals j
-        JOIN internship_registrations r ON j.registration_id = r.registration_id
+        JOIN internship_assignments ia ON j.assignment_id = ia.assignment_id
+        JOIN internship_registrations r ON ia.registration_id = r.registration_id
         JOIN users u ON r.student_id = u.user_id
         JOIN internship_positions p ON r.position_id = p.position_id
         JOIN companies c ON p.company_id = c.company_id
@@ -29,7 +30,8 @@ $at_risk = $conn->query(
             MAX(j.submitted_at) AS last_submission
      FROM internship_registrations r
      JOIN users u ON r.student_id = u.user_id
-     LEFT JOIN weekly_journals j ON r.registration_id = j.registration_id
+     LEFT JOIN internship_assignments ia ON ia.registration_id = r.registration_id
+     LEFT JOIN weekly_journals j ON j.assignment_id = ia.assignment_id
      WHERE r.status = 'approved'
      GROUP BY r.registration_id
      HAVING last_submission IS NULL OR last_submission < DATE_SUB(NOW(), INTERVAL 7 DAY)"

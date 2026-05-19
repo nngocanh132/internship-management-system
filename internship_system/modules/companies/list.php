@@ -33,12 +33,12 @@ $sql = "SELECT c.*, COUNT(p.position_id) AS total_positions
 $params = []; $types = '';
 
 if ($search !== '') {
-    $sql .= " AND (c.company_name LIKE ? OR c.industry LIKE ? OR c.contact_email LIKE ?)";
+    $sql .= " AND (c.name LIKE ? OR c.location LIKE ? OR c.contact_email LIKE ?)";
     $like = "%$search%";
     $params = [$like, $like, $like];
     $types = 'sss';
 }
-$sql .= " GROUP BY c.company_id ORDER BY c.created_at DESC";
+$sql .= " GROUP BY c.company_id ORDER BY c.company_id DESC";
 
 $stmt = $conn->prepare($sql);
 if ($params) $stmt->bind_param($types, ...$params);
@@ -116,7 +116,7 @@ $companies = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
                 <?php foreach ($companies as $i => $c):
                     $colors = ['#6366f1','#10b981','#f59e0b','#ef4444','#8b5cf6'];
                     $color  = $colors[$i % count($colors)];
-                    $initials = strtoupper(mb_substr($c['company_name'], 0, 2));
+                    $initials = strtoupper(mb_substr($c['name'], 0, 2));
                 ?>
                 <tr>
                     <td style="color:#94a3b8;font-size:.8rem"><?= $i + 1 ?></td>
@@ -125,10 +125,10 @@ $companies = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
                             <div class="avatar-sm" style="background:<?= $color ?>20;color:<?= $color ?>;font-size:.7rem;">
                                 <?= $initials ?>
                             </div>
-                            <strong><?= htmlspecialchars($c['company_name']) ?></strong>
+                            <strong><?= htmlspecialchars($c['name']) ?></strong>
                         </div>
                     </td>
-                    <td style="color:#64748b;font-size:.82rem"><?= htmlspecialchars($c['industry'] ?? '—') ?></td>
+                    <td style="color:#64748b;font-size:.82rem"><?= htmlspecialchars($c['location'] ?? '—') ?></td>
                     <td style="color:#64748b;font-size:.82rem"><?= htmlspecialchars($c['contact_email'] ?? '—') ?></td>
                     <td style="color:#64748b;font-size:.82rem"><?= htmlspecialchars($c['phone'] ?? '—') ?></td>
                     <td>

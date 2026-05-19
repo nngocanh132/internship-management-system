@@ -28,15 +28,14 @@ $search     = isset($_GET['search'])  ? sanitize($_GET['search'])  : '';
 $company_f  = isset($_GET['company']) ? (int)$_GET['company']      : 0;
 $status_f   = isset($_GET['status'])  ? sanitize($_GET['status'])  : '';
 
-$sql = "SELECT p.*, c.company_name,
-               (p.quota - p.filled) AS available
+$sql = "SELECT p.*, c.name AS company_name
         FROM internship_positions p
         JOIN companies c ON p.company_id = c.company_id
         WHERE 1=1";
 $params = []; $types = '';
 
 if ($search !== '') {
-    $sql .= " AND (p.title LIKE ? OR p.industry LIKE ?)";
+    $sql .= " AND (p.title LIKE ? OR p.required_major LIKE ?)";
     $like = "%$search%";
     $params = array_merge($params, [$like, $like]);
     $types .= 'ss';
@@ -56,7 +55,7 @@ if ($params) $stmt->bind_param($types, ...$params);
 $stmt->execute();
 $positions = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
 
-$companies = $conn->query("SELECT company_id, company_name FROM companies WHERE status='active' ORDER BY company_name")->fetch_all(MYSQLI_ASSOC);
+$companies = $conn->query("SELECT company_id, name AS company_name FROM companies WHERE status='active' ORDER BY name")->fetch_all(MYSQLI_ASSOC);
 ?>
 <?php include '../../includes/header.php'; ?>
 
@@ -132,49 +131,33 @@ $companies = $conn->query("SELECT company_id, company_name FROM companies WHERE 
                     <th>#</th>
                     <th>Vị trí</th>
                     <th>Doanh nghiệp</th>
-                    <th>Ngành</th>
+                    <th>Ngành yêu cầu</th>
                     <th>Quota</th>
-                    <th>Còn lại</th>
-                    <th>Thời gian</th>
                     <th>Trạng thái</th>
                     <th style="width:100px">Thao tác</th>
                 </tr>
             </thead>
             <tbody>
             <?php if (empty($positions)): ?>
-                <tr><td colspan="9" class="text-center py-5">
+                <tr><td colspan="6" class="text-center py-5">
                     <i class="bi bi-inbox fs-1 d-block mb-2 text-muted opacity-25"></i>
                     <span class="text-muted">Không có dữ liệu</span>
                 </td></tr>
             <?php else: ?>
                 <?php foreach ($positions as $i => $p):
                     $statusStyle = match($p['status']) {
-                        'open'   => ['background:#dcfce7;color:#166534', 'Đang mở'],
-                        'full'   => ['background:#fee2e2;color:#991b1b', 'Đã đầy'],
-                        'closed' => ['background:#f1f5f9;color:#64748b', 'Đã đóng'],
-                        default  => ['background:#f1f5f9;color:#64748b', $p['status']]
+                        'open'   => ['background:#f0fdf4;color:#166534', 'Đang mở'],
+                        'closed' => ['background:var(--ivory);color:var(--sage)', 'Đã đóng'],
+                        default  => ['background:var(--ivory);color:var(--sage)', $p['status']]
                     };
                 ?>
                 <tr>
                     <td style="color:#94a3b8;font-size:.8rem"><?= $i + 1 ?></td>
                     <td><strong style="font-size:.875rem"><?= htmlspecialchars($p['title']) ?></strong></td>
                     <td style="color:#64748b;font-size:.82rem"><?= htmlspecialchars($p['company_name']) ?></td>
-                    <td style="color:#64748b;font-size:.82rem"><?= htmlspecialchars($p['industry'] ?? '—') ?></td>
-                    <td class="text-center">
-                        <span class="fw-semibold"><?= $p['quota'] ?></span>
-                    </td>
-                    <td class="text-center">
-                        <span class="badge" style="background:<?= $p['available'] > 0 ? '#dcfce7;color:#166534' : '#fee2e2;color:#991b1b' ?>">
-                            <?= $p['available'] ?>
-                        </span>
-                    </td>
-                    <td style="font-size:.78rem;color:#94a3b8;white-space:nowrap">
-                        <?= date('d/m/Y', strtotime($p['start_date'])) ?><br>
-                        → <?= date('d/m/Y', strtotime($p['end_date'])) ?>
-                    </td>
-                    <td>
-                        <span class="badge" style="<?= $statusStyle[0] ?>"><?= $statusStyle[1] ?></span>
-                    </td>
+                    <td style="color:#64748b;font-size:.82rem"><?= htmlspecialchars($p['required_major'] ?? '—') ?></td>
+                    <td class="text-center"><span class="fw-semibold"><?= $p['quota'] ?></span></td>
+                    <td><span class="badge" style="<?= $statusStyle[0] ?>"><?= $statusStyle[1] ?></span></td>
                     <td>
                         <div class="d-flex gap-1">
                             <a href="edit.php?id=<?= $p['position_id'] ?>" class="btn btn-warning btn-sm">

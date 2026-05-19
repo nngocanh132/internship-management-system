@@ -15,14 +15,14 @@ if (isset($_GET['delete'])) {
 $assignments = $conn->query(
     "SELECT a.*, u_lec.full_name AS lecturer_name,
             u_stu.full_name AS student_name, u_stu.student_code,
-            p.title AS position_title, c.company_name
+            p.title AS position_title, c.name AS company_name
      FROM internship_assignments a
      JOIN users u_lec ON a.lecturer_id = u_lec.user_id
      JOIN internship_registrations r ON a.registration_id = r.registration_id
      JOIN users u_stu ON r.student_id = u_stu.user_id
      JOIN internship_positions p ON r.position_id = p.position_id
      JOIN companies c ON p.company_id = c.company_id
-     ORDER BY a.assigned_at DESC"
+     ORDER BY a.assignment_id DESC"
 )->fetch_all(MYSQLI_ASSOC);
 ?>
 <?php include '../../includes/header.php'; ?>
@@ -43,14 +43,15 @@ $assignments = $conn->query(
                     <th>Sinh viên</th>
                     <th>Vị trí / Doanh nghiệp</th>
                     <th>GVHD</th>
-                    <th>Ngày phân công</th>
-                    <th>Ghi chú</th>
+                    <th>Bắt đầu</th>
+                    <th>Kết thúc</th>
+                    <th>Trạng thái</th>
                     <th>Thao tác</th>
                 </tr>
             </thead>
             <tbody>
             <?php if (empty($assignments)): ?>
-                <tr><td colspan="7" class="text-center text-muted py-4">Chưa có phân công nào</td></tr>
+                <tr><td colspan="8" class="text-center text-muted py-4">Chưa có phân công nào</td></tr>
             <?php else: ?>
                 <?php foreach ($assignments as $i => $a): ?>
                 <tr>
@@ -64,8 +65,13 @@ $assignments = $conn->query(
                         <br><small class="text-muted"><?= htmlspecialchars($a['company_name']) ?></small>
                     </td>
                     <td><?= htmlspecialchars($a['lecturer_name']) ?></td>
-                    <td><small><?= $a['assigned_at'] ?></small></td>
-                    <td><?= htmlspecialchars($a['note'] ?? '—') ?></td>
+                    <td><small><?= $a['start_date'] ?? '—' ?></small></td>
+                    <td><small><?= $a['end_date'] ?? '—' ?></small></td>
+                    <td>
+                        <span class="badge" style="<?= $a['assignment_status']==='completed' ? 'background:#f0fdf4;color:#166534' : 'background:var(--ev-light);color:var(--evergreen)' ?>">
+                            <?= $a['assignment_status']==='completed' ? 'Hoàn thành' : 'Đang thực tập' ?>
+                        </span>
+                    </td>
                     <td>
                         <a href="edit.php?id=<?= $a['assignment_id'] ?>" class="btn btn-warning btn-sm">
                             <i class="bi bi-pencil"></i>
