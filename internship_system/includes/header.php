@@ -3,412 +3,264 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ISchool Internship Manager</title>
+    <title>ISchool Internship</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,300;0,14..32,400;0,14..32,500;0,14..32,600;0,14..32,700;0,14..32,800;1,14..32,400&display=swap" rel="stylesheet">
     <style>
-        /* ===== PALETTE ===== */
         :root {
-            --ivory:      #F4F3F1;
-            --blush:      #DECEBF;
-            --sage:       #A1A79E;
-            --terracotta: #B57B66;
-            --evergreen:  #68756D;
-            --ev-dark:    #4a5c52;
-            --ev-light:   rgba(104,117,109,.12);
+            --bg:        #E8E8DC;
+            --sidebar:   #4A6741;
+            --sid-dark:  #3a5232;
+            --sid-text:  rgba(255,255,255,.75);
+            --sid-active:#C8DFC4;
+            --card-bg:   #FFFFFF;
+            --mint:      #A8D5BA;
+            --mint-lt:   #D4EDE0;
+            --teal:      #7EC8C8;
+            --teal-lt:   #C8ECEC;
+            --accent:    #5A8A5A;
+            --text:      #2C3A2C;
+            --muted:     #7A8C7A;
+            --border:    rgba(74,103,65,.15);
+        }
+        *,*::before,*::after{box-sizing:border-box;}
+        body{
+            font-family:'Inter',system-ui,sans-serif;
+            background:var(--bg);
+            color:var(--text);
+            margin:0;
+            -webkit-font-smoothing:antialiased;
         }
 
-        /* ===== BASE ===== */
-        *, *::before, *::after { box-sizing: border-box; }
-        body {
-            font-family: 'Inter', sans-serif;
-            background: var(--ivory);
-            color: #2d3748;
-            margin: 0;
+        /* ── SIDEBAR ── */
+        .sidebar{
+            width:220px; min-height:100vh;
+            background:var(--sidebar);
+            position:fixed; top:0; left:0;
+            display:flex; flex-direction:column;
+            z-index:1000;
         }
+        .sidebar-brand{
+            padding:28px 24px 20px;
+            font-size:1.25rem; font-weight:800;
+            color:#fff; letter-spacing:-.3px;
+        }
+        .sidebar-brand span{ color:var(--mint); }
+        .nav-section{ padding:6px 12px; }
+        .nav-section-label{
+            font-size:.62rem; font-weight:600;
+            text-transform:uppercase; letter-spacing:1px;
+            color:rgba(255,255,255,.35);
+            padding:8px 12px 4px;
+        }
+        .sidebar-link{
+            display:flex; align-items:center; gap:10px;
+            padding:10px 14px; border-radius:10px;
+            color:var(--sid-text); text-decoration:none;
+            font-size:.875rem; font-weight:500;
+            transition:all .15s; margin-bottom:2px;
+        }
+        .sidebar-link i{ font-size:.95rem; width:18px; text-align:center; flex-shrink:0; }
+        .sidebar-link:hover{ background:rgba(255,255,255,.12); color:#fff; }
+        .sidebar-link.active{
+            background:rgba(200,223,196,.2);
+            color:var(--sid-active);
+            font-weight:600;
+        }
+        .sidebar-user{
+            margin:auto 16px 16px;
+            padding:12px 14px;
+            background:rgba(255,255,255,.1);
+            border-radius:12px;
+        }
+        .sidebar-user .u-name{ font-size:.82rem; font-weight:700; color:#fff; }
+        .sidebar-user .u-role{ font-size:.7rem; color:rgba(255,255,255,.55); margin-top:1px; }
+        .sidebar-footer{
+            padding:0 12px 16px;
+        }
+        .sidebar-footer a{
+            display:flex; align-items:center; gap:8px;
+            padding:9px 14px; border-radius:10px;
+            color:rgba(255,255,255,.5); text-decoration:none;
+            font-size:.82rem; font-weight:500; transition:all .15s;
+        }
+        .sidebar-footer a:hover{ background:rgba(255,255,255,.08); color:rgba(255,255,255,.85); }
+        .sidebar-footer .logout-link{ color:rgba(168,213,186,.7); }
+        .sidebar-footer .logout-link:hover{ background:rgba(168,213,186,.12); color:var(--mint); }
 
-        /* ===== SIDEBAR ===== */
-        .sidebar {
-            width: 260px;
-            min-height: 100vh;
-            background: linear-gradient(180deg, var(--ev-dark) 0%, var(--evergreen) 100%);
-            position: fixed;
-            top: 0; left: 0;
-            display: flex;
-            flex-direction: column;
-            z-index: 1000;
-            box-shadow: 4px 0 24px rgba(74,92,82,.25);
-            overflow-y: auto;
+        /* ── TOPBAR ── */
+        .topbar{
+            height:64px; background:var(--bg);
+            display:flex; align-items:center;
+            padding:0 32px;
+            position:sticky; top:0; z-index:900;
+            border-bottom:1px solid var(--border);
         }
+        .topbar-title{ font-size:1.5rem; font-weight:800; color:var(--text); letter-spacing:-.4px; }
+        .topbar-sub{ font-size:.82rem; color:var(--muted); margin-top:1px; }
 
-        .sidebar-brand {
-            padding: 22px 20px 18px;
-            border-bottom: 1px solid rgba(255,255,255,.1);
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
-        .sidebar-brand .brand-icon {
-            width: 42px; height: 42px;
-            background: rgba(255,255,255,.15);
-            border-radius: 12px;
-            display: flex; align-items: center; justify-content: center;
-            font-size: 1.2rem; color: #fff;
-            flex-shrink: 0;
-        }
-        .sidebar-brand .brand-title {
-            font-size: .95rem;
-            font-weight: 700;
-            color: #fff;
-            letter-spacing: .3px;
-        }
-        .sidebar-brand .brand-sub {
-            font-size: .7rem;
-            color: rgba(255,255,255,.55);
-            font-weight: 400;
-        }
+        /* ── LAYOUT ── */
+        .main-wrapper{ margin-left:220px; min-height:100vh; display:flex; flex-direction:column; }
+        .main-content{ padding:28px 32px; flex:1; }
 
-        /* Role badge in sidebar */
-        .sidebar-role {
-            margin: 12px 16px 0;
-            padding: 8px 14px;
-            background: rgba(255,255,255,.1);
-            border-radius: 10px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
+        /* ── CARDS ── */
+        .card{
+            border:none; border-radius:20px;
+            background:var(--card-bg);
+            box-shadow:0 2px 8px rgba(44,58,44,.06);
+            transition:box-shadow .2s,transform .2s;
         }
-        .sidebar-role .role-avatar {
-            width: 32px; height: 32px;
-            border-radius: 8px;
-            background: rgba(255,255,255,.2);
-            display: flex; align-items: center; justify-content: center;
-            font-size: .85rem; font-weight: 700; color: #fff;
-            flex-shrink: 0;
-        }
-        .sidebar-role .role-name {
-            font-size: .8rem;
-            font-weight: 600;
-            color: #fff;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-        .sidebar-role .role-badge {
-            font-size: .65rem;
-            color: rgba(255,255,255,.6);
-        }
-
-        .nav-section {
-            padding: 16px 16px 4px;
-        }
-        .nav-section-label {
-            font-size: .65rem;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 1.2px;
-            color: rgba(255,255,255,.4);
-            padding: 0 8px;
-            margin-bottom: 4px;
-        }
-
-        .sidebar-link {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            padding: 9px 12px;
-            border-radius: 8px;
-            color: rgba(255,255,255,.7);
-            text-decoration: none;
-            font-size: .855rem;
-            font-weight: 500;
-            transition: all .18s ease;
-            margin-bottom: 2px;
-        }
-        .sidebar-link i {
-            font-size: 1rem;
-            width: 20px;
-            text-align: center;
-            flex-shrink: 0;
-        }
-        .sidebar-link:hover {
-            background: rgba(255,255,255,.1);
-            color: #fff;
-            transform: translateX(2px);
-        }
-        .sidebar-link.active {
-            background: rgba(255,255,255,.18);
-            color: #fff;
-            border-left: 3px solid var(--blush);
-            font-weight: 600;
-        }
-
-        .sidebar-footer {
-            margin-top: auto;
-            padding: 16px;
-            border-top: 1px solid rgba(255,255,255,.08);
-        }
-        .sidebar-footer a {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            padding: 9px 14px;
-            border-radius: 8px;
-            color: rgba(255,255,255,.55);
-            text-decoration: none;
-            font-size: .82rem;
-            font-weight: 500;
-            transition: all .18s;
-        }
-        .sidebar-footer a:hover {
-            background: rgba(255,255,255,.08);
-            color: rgba(255,255,255,.85);
-        }
-        .sidebar-footer .logout-link {
-            color: rgba(181,123,102,.85);
-        }
-        .sidebar-footer .logout-link:hover {
-            background: rgba(181,123,102,.12);
-            color: var(--terracotta);
-        }
-
-        /* ===== TOPBAR ===== */
-        .topbar {
-            height: 64px;
-            background: #fff;
-            border-bottom: 1px solid var(--blush);
-            display: flex;
-            align-items: center;
-            padding: 0 28px;
-            position: sticky;
-            top: 0;
-            z-index: 900;
-            box-shadow: 0 1px 8px rgba(104,117,109,.08);
-        }
-        .topbar-title {
-            font-size: 1.05rem;
-            font-weight: 700;
-            color: var(--ev-dark);
-        }
-
-        /* ===== MAIN LAYOUT ===== */
-        .main-wrapper {
-            margin-left: 260px;
-            min-height: 100vh;
-            display: flex;
-            flex-direction: column;
-        }
-        .main-content {
-            padding: 28px 32px;
-            flex: 1;
-        }
-
-        /* ===== CARDS ===== */
-        .card {
-            border: none;
-            border-radius: 14px;
-            box-shadow: 0 2px 12px rgba(104,117,109,.08);
-            background: #fff;
-            transition: box-shadow .2s, transform .2s;
-        }
-        .card:hover { box-shadow: 0 6px 24px rgba(104,117,109,.13); }
+        .card:hover{ box-shadow:0 6px 20px rgba(44,58,44,.1); }
 
         /* Stat cards */
-        .stat-card {
-            border-radius: 16px;
-            padding: 22px 24px;
-            color: #fff;
-            position: relative;
-            overflow: hidden;
-            cursor: default;
-            transition: transform .2s, box-shadow .2s;
+        .stat-card{
+            background:var(--card-bg); border-radius:20px;
+            padding:24px 26px; position:relative;
+            transition:transform .2s,box-shadow .2s;
+            cursor:default;
         }
-        .stat-card:hover { transform: translateY(-3px); box-shadow: 0 12px 32px rgba(0,0,0,.15); }
-        .stat-card .stat-icon {
-            position: absolute;
-            right: 18px; top: 50%;
-            transform: translateY(-50%);
-            font-size: 3.5rem;
-            opacity: .15;
+        .stat-card:hover{ transform:translateY(-2px); box-shadow:0 8px 24px rgba(44,58,44,.1); }
+        .stat-card .stat-label{ font-size:.8rem; font-weight:600; color:var(--muted); margin-bottom:8px; }
+        .stat-card .stat-number{ font-size:2.4rem; font-weight:800; color:var(--text); line-height:1; margin-bottom:10px; }
+        .stat-card .stat-badge{
+            display:inline-block; padding:4px 12px;
+            border-radius:20px; font-size:.75rem; font-weight:600;
         }
-        .stat-card .stat-number {
-            font-size: 2.4rem;
-            font-weight: 800;
-            line-height: 1;
-            margin-bottom: 4px;
+        .stat-card .stat-link{
+            display:inline-flex; align-items:center; gap:4px;
+            font-size:.75rem; font-weight:600; text-decoration:none;
+            color:var(--accent); margin-top:10px;
         }
-        .stat-card .stat-label {
-            font-size: .82rem;
-            font-weight: 500;
-            opacity: .88;
-            text-transform: uppercase;
-            letter-spacing: .5px;
+        .stat-card .stat-link:hover{ color:var(--sidebar); }
+        /* badge colors */
+        .badge-mint  { background:var(--mint-lt);  color:#2d6a4f; }
+        .badge-teal  { background:var(--teal-lt);  color:#1a6b6b; }
+        .badge-sage  { background:#e8f0e8; color:var(--accent); }
+        .badge-peach { background:#fde8d8; color:#b05a2a; }
+        .badge-lav   { background:#ede9fe; color:#5b21b6; }
+        /* keep old stat-* for index.php */
+        .stat-ev,.stat-terra,.stat-sage,.stat-blush,.stat-green,.stat-blue,.stat-purple,.stat-orange,.stat-mint,.stat-ice{
+            background:var(--card-bg);
         }
-        .stat-card .stat-link {
-            display: inline-flex;
-            align-items: center;
-            gap: 4px;
-            color: rgba(255,255,255,.75);
-            font-size: .75rem;
-            text-decoration: none;
-            margin-top: 10px;
-            transition: color .15s;
-        }
-        .stat-card .stat-link:hover { color: #fff; }
+        .stat-ev .stat-number,.stat-terra .stat-number,.stat-sage .stat-number,
+        .stat-blush .stat-number,.stat-green .stat-number,.stat-blue .stat-number,
+        .stat-purple .stat-number,.stat-orange .stat-number,.stat-mint .stat-number,
+        .stat-ice .stat-number{ color:var(--text); }
+        .stat-ev .stat-link,.stat-terra .stat-link,.stat-sage .stat-link,
+        .stat-blush .stat-link,.stat-green .stat-link,.stat-blue .stat-link,
+        .stat-purple .stat-link,.stat-orange .stat-link,.stat-mint .stat-link,
+        .stat-ice .stat-link{ color:var(--accent); }
+        .stat-card .stat-icon{ display:none; }
 
-        .stat-ev      { background: linear-gradient(135deg, var(--evergreen), var(--ev-dark)); }
-        .stat-terra   { background: linear-gradient(135deg, var(--terracotta), #9a5e4a); }
-        .stat-sage    { background: linear-gradient(135deg, var(--sage), #7a8078); }
-        .stat-blush   { background: linear-gradient(135deg, #c9a98e, #b08060); }
-        .stat-green   { background: linear-gradient(135deg, #10b981, #059669); }
-        .stat-blue    { background: linear-gradient(135deg, #3b82f6, #1d4ed8); }
-        .stat-purple  { background: linear-gradient(135deg, #8b5cf6, #6d28d9); }
-        .stat-orange  { background: linear-gradient(135deg, #f59e0b, #d97706); }
+        /* ── TABLE ── */
+        .table-card .card-header{
+            background:var(--card-bg);
+            border-bottom:1px solid var(--border);
+            padding:18px 24px;
+            border-radius:20px 20px 0 0 !important;
+            font-weight:700; font-size:.95rem; color:var(--text);
+        }
+        .table thead th{
+            background:#f4f6f2;
+            color:var(--muted);
+            font-size:.72rem; font-weight:700;
+            text-transform:uppercase; letter-spacing:.7px;
+            border-bottom:1px solid var(--border);
+            padding:12px 18px; white-space:nowrap;
+        }
+        .table tbody td{
+            padding:13px 18px; vertical-align:middle;
+            font-size:.875rem;
+            border-bottom:1px solid rgba(44,58,44,.05);
+            color:var(--text);
+        }
+        .table tbody tr:hover td{ background:rgba(168,213,186,.08); }
+        .table tbody tr:last-child td{ border-bottom:none; }
 
-        /* ===== TABLE ===== */
-        .table-card .card-header {
-            background: #fff;
-            border-bottom: 2px solid var(--ivory);
-            padding: 16px 20px;
-            border-radius: 14px 14px 0 0 !important;
-            font-weight: 600;
-            font-size: .9rem;
-            color: var(--ev-dark);
-        }
-        .table thead th {
-            background: var(--ivory);
-            color: var(--sage);
-            font-size: .75rem;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: .6px;
-            border-bottom: 2px solid var(--blush);
-            padding: 12px 16px;
-            white-space: nowrap;
-        }
-        .table tbody td {
-            padding: 12px 16px;
-            vertical-align: middle;
-            font-size: .875rem;
-            border-bottom: 1px solid var(--ivory);
-            color: #374151;
-        }
-        .table tbody tr:hover td { background: #faf9f7; }
-        .table tbody tr:last-child td { border-bottom: none; }
+        /* ── BUTTONS ── */
+        .btn{ border-radius:10px; font-weight:600; font-size:.855rem; }
+        .btn-primary{ background:var(--sidebar); border:none; color:#fff; }
+        .btn-primary:hover{ background:var(--sid-dark); color:#fff; }
+        .btn-success{ background:#3a8a5a; border:none; color:#fff; }
+        .btn-warning{ background:#d4a843; border:none; color:#fff; }
+        .btn-warning:hover{ color:#fff; }
+        .btn-danger{ background:#d45a5a; border:none; color:#fff; }
+        .btn-secondary{ background:var(--mint-lt); border:none; color:var(--accent); }
+        .btn-secondary:hover{ background:var(--mint); color:var(--sid-dark); }
+        .btn-sm{ padding:5px 13px; font-size:.8rem; border-radius:8px; }
 
-        /* ===== BUTTONS ===== */
-        .btn { border-radius: 8px; font-weight: 500; font-size: .855rem; }
-        .btn-primary   { background: linear-gradient(135deg, var(--evergreen), var(--ev-dark)); border: none; color: #fff; }
-        .btn-primary:hover { background: linear-gradient(135deg, var(--ev-dark), #3a4c42); color: #fff; }
-        .btn-success   { background: linear-gradient(135deg, #10b981, #059669); border: none; }
-        .btn-warning   { background: linear-gradient(135deg, var(--terracotta), #9a5e4a); border: none; color: #fff; }
-        .btn-warning:hover { color: #fff; }
-        .btn-danger    { background: linear-gradient(135deg, #ef4444, #dc2626); border: none; }
-        .btn-secondary { background: var(--blush); border: none; color: var(--ev-dark); }
-        .btn-secondary:hover { background: #cdbdad; color: var(--ev-dark); }
-        .btn-sm { padding: 5px 12px; font-size: .8rem; }
+        /* ── BADGES ── */
+        .badge{ border-radius:8px; font-weight:600; font-size:.72rem; padding:4px 10px; }
 
-        /* ===== BADGES ===== */
-        .badge { border-radius: 6px; font-weight: 600; font-size: .72rem; padding: 4px 9px; }
+        /* ── FORMS ── */
+        .form-control,.form-select{
+            border-radius:10px;
+            border:1.5px solid var(--border);
+            font-size:.875rem; padding:9px 14px;
+            background:#fafafa;
+            font-family:'Inter',system-ui,sans-serif;
+            transition:border-color .2s,box-shadow .2s;
+        }
+        .form-control:focus,.form-select:focus{
+            border-color:var(--accent);
+            box-shadow:0 0 0 3px rgba(90,138,90,.12);
+            background:#fff; outline:none;
+        }
+        .form-label{ font-weight:600; font-size:.82rem; color:var(--text); margin-bottom:6px; }
 
-        /* ===== FORMS ===== */
-        .form-control, .form-select {
-            border-radius: 8px;
-            border: 1.5px solid var(--blush);
-            font-size: .875rem;
-            padding: 9px 14px;
-            background: var(--ivory);
-            transition: border-color .2s, box-shadow .2s;
+        /* ── PAGE HEADER ── */
+        .page-header{
+            display:flex; align-items:flex-start;
+            justify-content:space-between; margin-bottom:24px;
         }
-        .form-control:focus, .form-select:focus {
-            border-color: var(--evergreen);
-            box-shadow: 0 0 0 3px rgba(104,117,109,.12);
-            background: #fff;
-        }
-        .form-label { font-weight: 600; font-size: .82rem; color: #374151; margin-bottom: 6px; }
+        .page-header h4{ font-size:1.5rem; font-weight:800; color:var(--text); margin:0; letter-spacing:-.3px; }
+        .page-header .page-subtitle{ font-size:.82rem; color:var(--muted); margin-top:3px; }
 
-        /* ===== PAGE HEADER ===== */
-        .page-header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            margin-bottom: 24px;
-        }
-        .page-header h4 {
-            font-size: 1.3rem;
-            font-weight: 700;
-            color: var(--ev-dark);
-            margin: 0;
-        }
-        .page-header .page-subtitle {
-            font-size: .8rem;
-            color: var(--sage);
-            margin-top: 2px;
-        }
+        /* ── ALERTS ── */
+        .alert{ border:none; border-radius:14px; font-size:.875rem; padding:13px 18px; }
+        .alert-warning{ background:#fef9e7; color:#7c5c00; border-left:4px solid #f0c040; }
+        .alert-danger { background:#fef2f2; color:#991b1b; border-left:4px solid #f87171; }
+        .alert-success{ background:#f0fdf4; color:#166534; border-left:4px solid #4ade80; }
+        .alert-info   { background:var(--teal-lt); color:#1a6b6b; border-left:4px solid var(--teal); }
 
-        /* ===== ALERTS ===== */
-        .alert {
-            border: none;
-            border-radius: 12px;
-            font-size: .875rem;
-            padding: 14px 18px;
-        }
-        .alert-warning { background: #fffbeb; color: #92400e; border-left: 4px solid #f59e0b; }
-        .alert-danger  { background: #fef2f2; color: #991b1b; border-left: 4px solid var(--terracotta); }
-        .alert-success { background: #f0fdf4; color: #166534; border-left: 4px solid #22c55e; }
-        .alert-info    { background: #f0f4f2; color: var(--ev-dark); border-left: 4px solid var(--evergreen); }
+        /* ── PROGRESS ── */
+        .progress{ border-radius:99px; background:var(--mint-lt); height:8px; }
+        .progress-bar{ border-radius:99px; background:var(--sidebar); }
 
-        /* ===== PROGRESS ===== */
-        .progress { border-radius: 99px; background: var(--blush); }
-        .progress-bar { border-radius: 99px; background: var(--evergreen); }
+        /* ── MISC ── */
+        .avatar-sm{
+            width:36px; height:36px; border-radius:10px;
+            display:inline-flex; align-items:center; justify-content:center;
+            font-size:.82rem; font-weight:700; flex-shrink:0;
+        }
+        .section-divider{ height:1px; background:var(--border); margin:20px 0; }
+        .quick-action-card{
+            border-radius:16px; padding:16px 18px;
+            display:flex; align-items:center; gap:14px;
+            text-decoration:none; color:inherit;
+            background:var(--card-bg);
+            border:1.5px solid var(--border);
+            transition:all .2s;
+        }
+        .quick-action-card:hover{
+            border-color:var(--accent);
+            box-shadow:0 4px 16px rgba(44,58,44,.1);
+            transform:translateY(-2px); color:inherit;
+        }
+        .quick-action-card .qa-icon{
+            width:42px; height:42px; border-radius:12px;
+            display:flex; align-items:center; justify-content:center;
+            font-size:1.2rem; flex-shrink:0;
+        }
+        .quick-action-card .qa-title{ font-weight:700; font-size:.875rem; color:var(--text); }
+        .quick-action-card .qa-sub  { font-size:.75rem; color:var(--muted); }
 
-        /* ===== MISC ===== */
-        .section-divider {
-            height: 1px;
-            background: linear-gradient(90deg, var(--blush), transparent);
-            margin: 24px 0;
-        }
-        .avatar-sm {
-            width: 34px; height: 34px;
-            border-radius: 8px;
-            display: inline-flex; align-items: center; justify-content: center;
-            font-size: .85rem; font-weight: 700;
-            flex-shrink: 0;
-        }
-        .quick-action-card {
-            border-radius: 12px;
-            padding: 16px 18px;
-            display: flex;
-            align-items: center;
-            gap: 14px;
-            text-decoration: none;
-            color: inherit;
-            background: #fff;
-            border: 1.5px solid var(--blush);
-            transition: all .2s;
-        }
-        .quick-action-card:hover {
-            border-color: var(--evergreen);
-            box-shadow: 0 4px 16px rgba(104,117,109,.15);
-            transform: translateY(-2px);
-            color: inherit;
-        }
-        .quick-action-card .qa-icon {
-            width: 42px; height: 42px;
-            border-radius: 10px;
-            display: flex; align-items: center; justify-content: center;
-            font-size: 1.2rem;
-            flex-shrink: 0;
-        }
-        .quick-action-card .qa-title { font-weight: 600; font-size: .875rem; color: var(--ev-dark); }
-        .quick-action-card .qa-sub   { font-size: .75rem; color: var(--sage); }
-
-        /* ===== SCROLLBAR ===== */
-        ::-webkit-scrollbar { width: 6px; }
-        ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: var(--blush); border-radius: 99px; }
-        ::-webkit-scrollbar-thumb:hover { background: var(--sage); }
+        /* ── SCROLLBAR ── */
+        ::-webkit-scrollbar{ width:5px; }
+        ::-webkit-scrollbar-track{ background:transparent; }
+        ::-webkit-scrollbar-thumb{ background:var(--mint); border-radius:99px; }
+        ::-webkit-scrollbar-thumb:hover{ background:var(--accent); }
     </style>
 </head>
 <body>
@@ -419,79 +271,60 @@ function isActive($path) {
     global $current_page;
     return strpos($current_page, $path) !== false ? 'active' : '';
 }
-
 $script_url = str_replace('\\', '/', $_SERVER['SCRIPT_NAME']);
 $pos = strpos($script_url, '/internship_system');
 $sys = ($pos !== false) ? substr($script_url, 0, $pos) . '/internship_system' : '/internship_system';
-
 $role      = $_SESSION['role']      ?? 'guest';
 $full_name = $_SESSION['full_name'] ?? 'Khách';
 $initials  = strtoupper(mb_substr($full_name, 0, 1));
-
-$role_labels = [
-    'admin'    => 'Quản trị viên',
-    'lecturer' => 'Giảng viên',
-    'company'  => 'Doanh nghiệp',
-    'student'  => 'Sinh viên',
-];
-$role_label = $role_labels[$role] ?? 'Người dùng';
+$role_labels = ['admin'=>'Quản trị viên','lecturer'=>'Giảng viên','company'=>'Doanh nghiệp','student'=>'Sinh viên'];
+$role_label  = $role_labels[$role] ?? 'Người dùng';
 ?>
 
-<!-- ===== SIDEBAR ===== -->
 <div class="sidebar">
-    <div class="sidebar-brand">
-        <div class="brand-icon"><i class="bi bi-mortarboard-fill"></i></div>
-        <div class="brand-text">
-            <div class="brand-title">ISchool Internship</div>
-            <div class="brand-sub">Management System</div>
-        </div>
-    </div>
-
-    <!-- User info -->
-    <div class="sidebar-role">
-        <div class="role-avatar"><?= $initials ?></div>
-        <div style="min-width:0">
-            <div class="role-name"><?= htmlspecialchars($full_name) ?></div>
-            <div class="role-badge"><?= $role_label ?></div>
-        </div>
-    </div>
+    <div class="sidebar-brand">ISCHOOL<span>.</span></div>
 
     <?php if ($role === 'admin' || $role === 'lecturer'): ?>
-    <!-- ── ADMIN / LECTURER MENU ── -->
     <div class="nav-section">
         <div class="nav-section-label">Tổng quan</div>
         <a href="<?= $sys ?>/index.php" class="sidebar-link <?= isActive('/index.php') && !isActive('/modules/') ? 'active' : '' ?>">
             <i class="bi bi-grid-fill"></i> Dashboard
         </a>
     </div>
-
     <div class="nav-section">
-        <div class="nav-section-label">Quản lý người dùng</div>
+        <div class="nav-section-label">Người dùng</div>
         <a href="<?= $sys ?>/modules/users/list.php" class="sidebar-link <?= isActive('/users/') ?>">
             <i class="bi bi-people-fill"></i> Người dùng
+        </a>
+        <a href="<?= $sys ?>/modules/departments/list.php" class="sidebar-link <?= isActive('/departments/') ?>">
+            <i class="bi bi-diagram-3-fill"></i> Khoa / Bộ môn
         </a>
         <a href="<?= $sys ?>/modules/companies/list.php" class="sidebar-link <?= isActive('/companies/') ?>">
             <i class="bi bi-building-fill"></i> Doanh nghiệp
         </a>
     </div>
-
     <div class="nav-section">
         <div class="nav-section-label">Thực tập</div>
-        <a href="<?= $sys ?>/modules/positions/list.php" class="sidebar-link <?= isActive('/positions/') ?>">
+        <a href="<?= $sys ?>/modules/positions/list.php" class="sidebar-link <?= isActive('/positions/') && !isActive('/position_skills/') ? 'active' : '' ?>">
             <i class="bi bi-briefcase-fill"></i> Vị trí thực tập
         </a>
+        <a href="<?= $sys ?>/modules/skills/list.php" class="sidebar-link <?= isActive('/skills/') && !isActive('/position_skills/') ? 'active' : '' ?>">
+            <i class="bi bi-lightning-charge-fill"></i> Kỹ năng
+        </a>
+        <a href="<?= $sys ?>/modules/position_skills/list.php" class="sidebar-link <?= isActive('/position_skills/') ?>">
+            <i class="bi bi-tags-fill"></i> Kỹ năng – Vị trí
+        </a>
         <a href="<?= $sys ?>/modules/registrations/list.php" class="sidebar-link <?= isActive('/registrations/') ?>">
-            <i class="bi bi-clipboard-check-fill"></i> Đăng ký thực tập
+            <i class="bi bi-clipboard-check-fill"></i> Đăng ký
         </a>
         <a href="<?= $sys ?>/modules/assignments/list.php" class="sidebar-link <?= isActive('/assignments/') ?>">
             <i class="bi bi-person-check-fill"></i> Phân công GVHD
         </a>
     </div>
-
     <div class="nav-section">
-        <div class="nav-section-label">Theo dõi & Đánh giá</div>
+        <div class="nav-section-label">Đánh giá</div>
         <a href="<?= $sys ?>/modules/journals/list.php" class="sidebar-link <?= isActive('/journals/') ?>">
-            <i class="bi bi-journal-richtext"></i> Nhật ký hàng tuần
+            <i class="bi bi-journal-richtext"></i> Nhật ký
         </a>
         <a href="<?= $sys ?>/modules/company_eval/list.php" class="sidebar-link <?= isActive('/company_eval/') ?>">
             <i class="bi bi-star-fill"></i> Đánh giá DN
@@ -505,66 +338,35 @@ $role_label = $role_labels[$role] ?? 'Người dùng';
     </div>
 
     <?php elseif ($role === 'company'): ?>
-    <!-- ── COMPANY MENU ── -->
     <div class="nav-section">
-        <div class="nav-section-label">Tổng quan</div>
-        <a href="<?= $sys ?>/index.php" class="sidebar-link <?= isActive('/index.php') && !isActive('/modules/') ? 'active' : '' ?>">
-            <i class="bi bi-grid-fill"></i> Dashboard
-        </a>
-    </div>
-    <div class="nav-section">
-        <div class="nav-section-label">Quản lý</div>
-        <a href="<?= $sys ?>/modules/positions/list.php" class="sidebar-link <?= isActive('/positions/') ?>">
-            <i class="bi bi-briefcase-fill"></i> Vị trí thực tập
-        </a>
-        <a href="<?= $sys ?>/modules/registrations/list.php" class="sidebar-link <?= isActive('/registrations/') ?>">
-            <i class="bi bi-clipboard-check-fill"></i> Sinh viên đăng ký
-        </a>
-        <a href="<?= $sys ?>/modules/journals/list.php" class="sidebar-link <?= isActive('/journals/') ?>">
-            <i class="bi bi-journal-richtext"></i> Nhật ký sinh viên
-        </a>
-        <a href="<?= $sys ?>/modules/company_eval/list.php" class="sidebar-link <?= isActive('/company_eval/') ?>">
-            <i class="bi bi-star-fill"></i> Đánh giá sinh viên
-        </a>
+        <a href="<?= $sys ?>/index.php" class="sidebar-link <?= isActive('/index.php') && !isActive('/modules/') ? 'active' : '' ?>"><i class="bi bi-grid-fill"></i> Dashboard</a>
+        <a href="<?= $sys ?>/modules/positions/list.php" class="sidebar-link <?= isActive('/positions/') ?>"><i class="bi bi-briefcase-fill"></i> Vị trí thực tập</a>
+        <a href="<?= $sys ?>/modules/registrations/list.php" class="sidebar-link <?= isActive('/registrations/') ?>"><i class="bi bi-clipboard-check-fill"></i> Sinh viên đăng ký</a>
+        <a href="<?= $sys ?>/modules/journals/list.php" class="sidebar-link <?= isActive('/journals/') ?>"><i class="bi bi-journal-richtext"></i> Nhật ký</a>
+        <a href="<?= $sys ?>/modules/company_eval/list.php" class="sidebar-link <?= isActive('/company_eval/') ?>"><i class="bi bi-star-fill"></i> Đánh giá</a>
     </div>
 
     <?php elseif ($role === 'student'): ?>
-    <!-- ── STUDENT MENU ── -->
     <div class="nav-section">
-        <div class="nav-section-label">Tổng quan</div>
-        <a href="<?= $sys ?>/index.php" class="sidebar-link <?= isActive('/index.php') && !isActive('/modules/') ? 'active' : '' ?>">
-            <i class="bi bi-grid-fill"></i> Dashboard
-        </a>
-    </div>
-    <div class="nav-section">
-        <div class="nav-section-label">Thực tập của tôi</div>
-        <a href="<?= $sys ?>/modules/positions/list.php" class="sidebar-link <?= isActive('/positions/') ?>">
-            <i class="bi bi-briefcase-fill"></i> Tìm vị trí thực tập
-        </a>
-        <a href="<?= $sys ?>/modules/registrations/list.php" class="sidebar-link <?= isActive('/registrations/') ?>">
-            <i class="bi bi-clipboard-check-fill"></i> Đăng ký của tôi
-        </a>
-        <a href="<?= $sys ?>/modules/journals/list.php" class="sidebar-link <?= isActive('/journals/') ?>">
-            <i class="bi bi-journal-richtext"></i> Nhật ký của tôi
-        </a>
-        <a href="<?= $sys ?>/modules/grades/list.php" class="sidebar-link <?= isActive('/grades/') ?>">
-            <i class="bi bi-award-fill"></i> Điểm của tôi
-        </a>
+        <a href="<?= $sys ?>/index.php" class="sidebar-link <?= isActive('/index.php') && !isActive('/modules/') ? 'active' : '' ?>"><i class="bi bi-grid-fill"></i> Dashboard</a>
+        <a href="<?= $sys ?>/modules/positions/list.php" class="sidebar-link <?= isActive('/positions/') ?>"><i class="bi bi-briefcase-fill"></i> Tìm vị trí</a>
+        <a href="<?= $sys ?>/modules/registrations/list.php" class="sidebar-link <?= isActive('/registrations/') ?>"><i class="bi bi-clipboard-check-fill"></i> Đăng ký của tôi</a>
+        <a href="<?= $sys ?>/modules/journals/list.php" class="sidebar-link <?= isActive('/journals/') ?>"><i class="bi bi-journal-richtext"></i> Nhật ký</a>
+        <a href="<?= $sys ?>/modules/grades/list.php" class="sidebar-link <?= isActive('/grades/') ?>"><i class="bi bi-award-fill"></i> Điểm của tôi</a>
     </div>
 
     <?php else: ?>
-    <!-- Guest / fallback -->
     <div class="nav-section">
-        <a href="<?= $sys ?>/auth/login.php" class="sidebar-link">
-            <i class="bi bi-box-arrow-in-right"></i> Đăng nhập
-        </a>
+        <a href="<?= $sys ?>/auth/login.php" class="sidebar-link"><i class="bi bi-box-arrow-in-right"></i> Đăng nhập</a>
     </div>
     <?php endif; ?>
 
+    <div class="sidebar-user">
+        <div class="u-name"><?= htmlspecialchars($full_name) ?></div>
+        <div class="u-role"><?= $role_label ?></div>
+    </div>
+
     <div class="sidebar-footer">
-        <a href="<?= $sys ?>/index.php">
-            <i class="bi bi-house-fill"></i> Trang chủ
-        </a>
         <?php if (isLoggedIn()): ?>
         <a href="<?= $sys ?>/auth/logout.php" class="logout-link">
             <i class="bi bi-box-arrow-right"></i> Đăng xuất
@@ -573,54 +375,28 @@ $role_label = $role_labels[$role] ?? 'Người dùng';
     </div>
 </div>
 
-<!-- ===== MAIN WRAPPER ===== -->
 <div class="main-wrapper">
-    <!-- Topbar -->
     <div class="topbar">
+        <?php
+        $titles = [
+            'users'=>'Người dùng','departments'=>'Khoa / Bộ môn','companies'=>'Doanh nghiệp',
+            'position_skills'=>'Kỹ năng – Vị trí','positions'=>'Vị trí Thực tập',
+            'skills'=>'Kỹ năng','registrations'=>'Đăng ký Thực tập',
+            'assignments'=>'Phân công GVHD','journals'=>'Nhật ký',
+            'company_eval'=>'Đánh giá DN','lecturer_eval'=>'Đánh giá GV',
+            'grades'=>'Điểm Tổng hợp','index'=>'Dashboard',
+        ];
+        $page_key='index';
+        foreach ($titles as $k=>$v) { if (strpos($current_page,$k)!==false){$page_key=$k;break;} }
+        ?>
         <div>
-            <div class="topbar-title">
-                <?php
-                $titles = [
-                    'users'        => 'Quản lý Người dùng',
-                    'companies'    => 'Quản lý Doanh nghiệp',
-                    'positions'    => 'Vị trí Thực tập',
-                    'registrations'=> 'Đăng ký Thực tập',
-                    'assignments'  => 'Phân công GVHD',
-                    'journals'     => 'Nhật ký Hàng tuần',
-                    'company_eval' => 'Đánh giá Doanh nghiệp',
-                    'lecturer_eval'=> 'Đánh giá Giảng viên',
-                    'grades'       => 'Điểm Tổng hợp',
-                    'index'        => 'Dashboard',
-                ];
-                $page_key = 'index';
-                foreach ($titles as $k => $v) {
-                    if (strpos($current_page, $k) !== false) { $page_key = $k; break; }
-                }
-                echo $titles[$page_key];
-                ?>
-            </div>
+            <div class="topbar-title"><?= $titles[$page_key] ?></div>
+            <div class="topbar-sub"><?= date('l, d/m/Y') ?></div>
         </div>
         <div class="ms-auto d-flex align-items-center gap-3">
-            <span class="text-muted small"><i class="bi bi-calendar3 me-1"></i><?= date('d/m/Y') ?></span>
-            <div class="d-flex align-items-center gap-2">
-                <div style="width:32px;height:32px;border-radius:8px;background:var(--ev-light);display:flex;align-items:center;justify-content:center;color:var(--evergreen);font-size:.8rem;font-weight:700;border:1.5px solid var(--blush);">
-                    <?= $initials ?>
-                </div>
-                <div>
-                    <div class="small fw-semibold" style="color:var(--ev-dark);line-height:1.2"><?= htmlspecialchars($full_name) ?></div>
-                    <div style="font-size:.68rem;color:var(--sage)"><?= $role_label ?></div>
-                </div>
+            <div style="width:36px;height:36px;border-radius:50%;background:var(--mint);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:.85rem;color:var(--sid-dark);">
+                <?= $initials ?>
             </div>
-            <?php if (isLoggedIn()): ?>
-            <a href="<?= $sys ?>/auth/logout.php"
-               style="color:var(--sage);font-size:.8rem;text-decoration:none;padding:6px 10px;border-radius:8px;border:1px solid var(--blush);transition:all .18s;"
-               onmouseover="this.style.background='var(--blush)'"
-               onmouseout="this.style.background='transparent'">
-                <i class="bi bi-box-arrow-right"></i>
-            </a>
-            <?php endif; ?>
         </div>
     </div>
-
-    <!-- Main Content -->
     <div class="main-content">

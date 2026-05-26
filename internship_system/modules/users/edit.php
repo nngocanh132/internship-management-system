@@ -57,7 +57,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $code = !empty($student_code) ? $student_code : null;
 
         if (!empty($new_password) && strlen($new_password) >= 6) {
-            $hashed = md5($new_password);
+            $hashed = password_hash($new_password, PASSWORD_DEFAULT);
             $stmt = $conn->prepare(
                 "UPDATE users SET full_name=?, email=?, password=?, role=?, department_id=?, phone=?, student_code=?, status=?
                  WHERE user_id=?"

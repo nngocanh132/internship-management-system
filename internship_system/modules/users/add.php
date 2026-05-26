@@ -43,7 +43,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     if (empty($errors)) {
-        $hashed = md5($password); // In production use password_hash()
+        $hashed = password_hash($password, PASSWORD_DEFAULT);
         $dept   = $department_id > 0 ? $department_id : null;
         $code   = !empty($student_code) ? $student_code : null;
 
