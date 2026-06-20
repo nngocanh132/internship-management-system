@@ -1,279 +1,215 @@
--- =========================================
--- DROP & CREATE DATABASE
--- =========================================
+-- ============================================
+-- INTERNSHIP MANAGEMENT SYSTEM v2
+-- 12 Tables - Clean Schema
+-- ============================================
 DROP DATABASE IF EXISTS internship_system;
-
-CREATE DATABASE internship_system;
-
+CREATE DATABASE internship_system CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 USE internship_system;
 
--- =========================================
--- 1. DEPARTMENTS
--- =========================================
-CREATE TABLE departments (
-    department_id INT AUTO_INCREMENT PRIMARY KEY,
-    department_name VARCHAR(100) NOT NULL,
-    faculty VARCHAR(100)
-);
-
--- =========================================
--- 2. USERS
--- =========================================
+-- 1. USERS
 CREATE TABLE users (
     user_id INT AUTO_INCREMENT PRIMARY KEY,
-
-    department_id INT,
-
-    full_name VARCHAR(100) NOT NULL,
-    email VARCHAR(100) NOT NULL UNIQUE,
+    email VARCHAR(150) NOT NULL UNIQUE,
     password VARCHAR(255) NOT NULL,
+    role ENUM('student','company','lecturer','admin') NOT NULL,
+    is_profile_completed TINYINT(1) DEFAULT 0,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
 
-    role ENUM(
-        'student',
-        'lecturer',
-        'company',
-        'admin'
-    ) NOT NULL,
-
+-- 2. STUDENT_PROFILES
+CREATE TABLE student_profiles (
+    student_id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL UNIQUE,
+    full_name VARCHAR(100) NOT NULL,
+    student_code VARCHAR(30) UNIQUE,
+    phone VARCHAR(20),
+    gpa DECIMAL(3,2),
     major VARCHAR(100),
-    student_code VARCHAR(20) UNIQUE,
-    phone VARCHAR(20),
-
-    status ENUM(
-        'active',
-        'inactive'
-    ) DEFAULT 'active',
-
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-
-    CONSTRAINT fk_users_department
-        FOREIGN KEY (department_id)
-        REFERENCES departments(department_id)
+    avatar VARCHAR(255),
+    about_me TEXT,
+    linkedin_url VARCHAR(255),
+    CONSTRAINT fk_sp_user FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
 );
 
--- =========================================
--- 3. COMPANIES
--- =========================================
-CREATE TABLE companies (
+-- 3. COMPANY_PROFILES
+CREATE TABLE company_profiles (
     company_id INT AUTO_INCREMENT PRIMARY KEY,
-
-    name VARCHAR(150) NOT NULL,
-    location VARCHAR(150),
-    description TEXT,
-
-    contact_email VARCHAR(100),
+    user_id INT NOT NULL UNIQUE,
+    company_name VARCHAR(150) NOT NULL,
+    tax_code VARCHAR(50),
+    address TEXT,
     phone VARCHAR(20),
-
-    status ENUM(
-        'active',
-        'inactive'
-    ) DEFAULT 'active'
-);
-
--- =========================================
--- 4. SKILLS
--- =========================================
-CREATE TABLE skills (
-    skill_id INT AUTO_INCREMENT PRIMARY KEY,
-
-    skill_name VARCHAR(100) NOT NULL UNIQUE,
-    description TEXT
-);
-
--- =========================================
--- 5. INTERNSHIP_POSITIONS
--- =========================================
-CREATE TABLE internship_positions (
-    position_id INT AUTO_INCREMENT PRIMARY KEY,
-
-    company_id INT NOT NULL,
-
-    title VARCHAR(150) NOT NULL,
+    website VARCHAR(255),
+    logo VARCHAR(255),
+    business_license_file VARCHAR(255),
     description TEXT,
-
-    required_major VARCHAR(100),
-
-    quota INT NOT NULL,
-
-    status ENUM(
-        'open',
-        'closed'
-    ) DEFAULT 'open',
-
+    industry VARCHAR(100),
+    company_size VARCHAR(50),
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-
-    CONSTRAINT fk_positions_company
-        FOREIGN KEY (company_id)
-        REFERENCES companies(company_id)
+    CONSTRAINT fk_cp_user FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
 );
 
--- =========================================
--- 6. POSITION_SKILLS
--- =========================================
-CREATE TABLE position_skills (
-    position_skill_id INT AUTO_INCREMENT PRIMARY KEY,
-
-    position_id INT NOT NULL,
-    skill_id INT NOT NULL,
-
-    UNIQUE(position_id, skill_id),
-
-    CONSTRAINT fk_positionskills_position
-        FOREIGN KEY (position_id)
-        REFERENCES internship_positions(position_id),
-
-    CONSTRAINT fk_positionskills_skill
-        FOREIGN KEY (skill_id)
-        REFERENCES skills(skill_id)
-);
--- =========================================
--- 7. INTERNSHIP_REGISTRATIONS
--- =========================================
-CREATE TABLE internship_registrations (
-    registration_id INT AUTO_INCREMENT PRIMARY KEY,
-
-    student_id INT NOT NULL,
-    position_id INT NOT NULL,
-
-    status ENUM(
-        'pending',
-        'approved',
-        'rejected',
-        'cancelled'
-    ) DEFAULT 'pending',
-
-    registered_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-
-    UNIQUE(student_id, position_id),
-
-    CONSTRAINT fk_registrations_student
-        FOREIGN KEY (student_id)
-        REFERENCES users(user_id),
-
-    CONSTRAINT fk_registrations_position
-        FOREIGN KEY (position_id)
-        REFERENCES internship_positions(position_id)
+-- 4. LECTURER_PROFILES
+CREATE TABLE lecturer_profiles (
+    lecturer_id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL UNIQUE,
+    full_name VARCHAR(100) NOT NULL,
+    department VARCHAR(100),
+    phone VARCHAR(20),
+    email VARCHAR(150),
+    CONSTRAINT fk_lp_user FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
 );
 
--- =========================================
--- 8. INTERNSHIP_ASSIGNMENTS
--- =========================================
-CREATE TABLE internship_assignments (
-    assignment_id INT AUTO_INCREMENT PRIMARY KEY,
-
-    registration_id INT NOT NULL,
-    lecturer_id INT NOT NULL,
-
+-- 5. INTERNSHIPS (Job posts by company)
+CREATE TABLE internships (
+    internship_id INT AUTO_INCREMENT PRIMARY KEY,
+    company_id INT NOT NULL,
+    title VARCHAR(200) NOT NULL,
+    description TEXT,
+    requirements TEXT,
+    quantity INT DEFAULT 1,
+    location VARCHAR(200),
     start_date DATE,
     end_date DATE,
-
-    assignment_status ENUM(
-        'active',
-        'completed'
-    ) DEFAULT 'active',
-
-    notes TEXT,
-
-    CONSTRAINT fk_assignments_registration
-        FOREIGN KEY (registration_id)
-        REFERENCES internship_registrations(registration_id),
-
-    CONSTRAINT fk_assignments_lecturer
-        FOREIGN KEY (lecturer_id)
-        REFERENCES users(user_id)
+    status ENUM('open','closed') DEFAULT 'open',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_int_company FOREIGN KEY (company_id) REFERENCES company_profiles(company_id) ON DELETE CASCADE
 );
 
--- =========================================
--- 9. WEEKLY_JOURNALS
--- =========================================
-CREATE TABLE weekly_journals (
-    journal_id INT AUTO_INCREMENT PRIMARY KEY,
-
-    assignment_id INT NOT NULL,
-
-    week_number INT NOT NULL,
-    content TEXT NOT NULL,
-
-    lecturer_comment TEXT,
-
-    submitted_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-
+-- 6. APPLICATIONS
+CREATE TABLE applications (
+    application_id INT AUTO_INCREMENT PRIMARY KEY,
+    student_id INT NOT NULL,
+    internship_id INT NOT NULL,
+    cv_file VARCHAR(255),
     status ENUM(
-        'submitted',
-        'late',
-        'reviewed'
-    ) DEFAULT 'submitted',
-
-    UNIQUE(assignment_id, week_number),
-
-    CONSTRAINT fk_journals_assignment
-        FOREIGN KEY (assignment_id)
-        REFERENCES internship_assignments(assignment_id)
+        'pending_admin',
+        'approved_admin',
+        'rejected_admin',
+        'approved_company',
+        'rejected_company',
+        'interview_passed',
+        'interview_failed',
+        'internship_active',
+        'internship_completed'
+    ) DEFAULT 'pending_admin',
+    admin_note TEXT,
+    applied_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY uq_app (student_id, internship_id),
+    CONSTRAINT fk_app_student FOREIGN KEY (student_id) REFERENCES student_profiles(student_id) ON DELETE CASCADE,
+    CONSTRAINT fk_app_internship FOREIGN KEY (internship_id) REFERENCES internships(internship_id) ON DELETE CASCADE
 );
 
--- =========================================
--- 10. COMPANY_EVALUATIONS
--- =========================================
-CREATE TABLE company_evaluations (
+-- 7. CONVERSATIONS
+CREATE TABLE conversations (
+    conversation_id INT AUTO_INCREMENT PRIMARY KEY,
+    student_id INT NOT NULL,
+    company_id INT NOT NULL,
+    application_id INT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY uq_conv (student_id, company_id, application_id),
+    CONSTRAINT fk_conv_student FOREIGN KEY (student_id) REFERENCES student_profiles(student_id) ON DELETE CASCADE,
+    CONSTRAINT fk_conv_company FOREIGN KEY (company_id) REFERENCES company_profiles(company_id) ON DELETE CASCADE,
+    CONSTRAINT fk_conv_app FOREIGN KEY (application_id) REFERENCES applications(application_id) ON DELETE SET NULL
+);
+
+-- 8. MESSAGES
+CREATE TABLE messages (
+    message_id INT AUTO_INCREMENT PRIMARY KEY,
+    conversation_id INT NOT NULL,
+    sender_id INT NOT NULL,
+    message_content TEXT NOT NULL,
+    is_read TINYINT(1) DEFAULT 0,
+    sent_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_msg_conv FOREIGN KEY (conversation_id) REFERENCES conversations(conversation_id) ON DELETE CASCADE,
+    CONSTRAINT fk_msg_sender FOREIGN KEY (sender_id) REFERENCES users(user_id) ON DELETE CASCADE
+);
+
+-- 9. INTERVIEWS
+CREATE TABLE interviews (
+    interview_id INT AUTO_INCREMENT PRIMARY KEY,
+    application_id INT NOT NULL UNIQUE,
+    interview_date DATETIME,
+    meeting_link VARCHAR(255),
+    address VARCHAR(255),
+    result ENUM('pending','passed','failed') DEFAULT 'pending',
+    note TEXT,
+    CONSTRAINT fk_iv_app FOREIGN KEY (application_id) REFERENCES applications(application_id) ON DELETE CASCADE
+);
+
+-- 10. INTERNSHIP_REGISTRATIONS
+CREATE TABLE internship_registrations (
+    registration_id INT AUTO_INCREMENT PRIMARY KEY,
+    student_id INT NOT NULL,
+    company_id INT NOT NULL,
+    internship_id INT NOT NULL,
+    lecturer_id INT,
+    start_date DATE,
+    end_date DATE,
+    status ENUM('active','completed') DEFAULT 'active',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_reg_student FOREIGN KEY (student_id) REFERENCES student_profiles(student_id),
+    CONSTRAINT fk_reg_company FOREIGN KEY (company_id) REFERENCES company_profiles(company_id),
+    CONSTRAINT fk_reg_internship FOREIGN KEY (internship_id) REFERENCES internships(internship_id),
+    CONSTRAINT fk_reg_lecturer FOREIGN KEY (lecturer_id) REFERENCES lecturer_profiles(lecturer_id)
+);
+
+-- 11. EVALUATIONS
+CREATE TABLE evaluations (
     evaluation_id INT AUTO_INCREMENT PRIMARY KEY,
-
-    assignment_id INT NOT NULL,
-
-    evaluator_name VARCHAR(100),
-
-    score DECIMAL(5,2) NOT NULL,
-    feedback TEXT,
-
+    registration_id INT NOT NULL UNIQUE,
+    technical_skill TINYINT,
+    teamwork TINYINT,
+    communication TINYINT,
+    attitude TINYINT,
+    overall_score DECIMAL(4,2),
+    comment TEXT,
     evaluated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-
-    CONSTRAINT fk_companyevaluations_assignment
-        FOREIGN KEY (assignment_id)
-        REFERENCES internship_assignments(assignment_id)
+    CONSTRAINT fk_eval_reg FOREIGN KEY (registration_id) REFERENCES internship_registrations(registration_id)
 );
 
--- =========================================
--- 11. LECTURER_EVALUATIONS
--- =========================================
-CREATE TABLE lecturer_evaluations (
-    evaluation_id INT AUTO_INCREMENT PRIMARY KEY,
-
-    assignment_id INT NOT NULL,
-    lecturer_id INT NOT NULL,
-
-    score DECIMAL(5,2) NOT NULL,
-    feedback TEXT,
-
-    evaluated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-
-    CONSTRAINT fk_lecturerevaluations_assignment
-    FOREIGN KEY (assignment_id)
-        REFERENCES internship_assignments(assignment_id),
-
-    CONSTRAINT fk_lecturerevaluations_lecturer
-        FOREIGN KEY (lecturer_id)
-        REFERENCES users(user_id)
+-- 12. INTERNSHIP_REPORTS
+CREATE TABLE internship_reports (
+    report_id INT AUTO_INCREMENT PRIMARY KEY,
+    registration_id INT NOT NULL UNIQUE,
+    report_file VARCHAR(255),
+    status ENUM('pending','approved','rejected') DEFAULT 'pending',
+    lecturer_comment TEXT,
+    submitted_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    reviewed_at DATETIME,
+    CONSTRAINT fk_report_reg FOREIGN KEY (registration_id) REFERENCES internship_registrations(registration_id)
 );
 
--- =========================================
--- 12. FINAL_GRADES
--- =========================================
-CREATE TABLE final_grades (
-    final_id INT AUTO_INCREMENT PRIMARY KEY,
+-- ============================================
+-- SEED DATA
+-- ============================================
 
-    assignment_id INT NOT NULL UNIQUE,
+-- Admin account (password: admin123)
+INSERT INTO users (email, password, role, is_profile_completed) VALUES
+('admin@ischool.edu.vn', MD5('admin123'), 'admin', 1);
 
-    company_score DECIMAL(5,2),
-    lecturer_score DECIMAL(5,2),
-    final_score DECIMAL(5,2),
+-- Demo lecturer (password: pass123) - Admin creates lecturer
+INSERT INTO users (email, password, role, is_profile_completed) VALUES
+('lecturer1@ischool.edu.vn', MD5('pass123'), 'lecturer', 1);
 
-    result_status ENUM(
-        'pass',
-        'fail'
-    ),
+INSERT INTO lecturer_profiles (user_id, full_name, department, phone, email) VALUES
+(2, 'TS. Nguyễn Văn Minh', 'Khoa CNTT', '0901000005', 'lecturer1@ischool.edu.vn');
 
-    calculated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+-- Demo student (password: pass123)
+INSERT INTO users (email, password, role, is_profile_completed) VALUES
+('student1@ischool.edu.vn', MD5('pass123'), 'student', 1);
 
-    CONSTRAINT fk_finalgrades_assignment
-        FOREIGN KEY (assignment_id)
-        REFERENCES internship_assignments(assignment_id)
-);
+INSERT INTO student_profiles (user_id, full_name, student_code, phone, gpa, major) VALUES
+(3, 'Nguyễn Văn An', 'SV2024001', '0901000002', 3.50, 'Công nghệ thông tin');
+
+-- Demo company (password: pass123)
+INSERT INTO users (email, password, role, is_profile_completed) VALUES
+('hr@fpt.com', MD5('pass123'), 'company', 1);
+
+INSERT INTO company_profiles (user_id, company_name, tax_code, address, phone, website, industry) VALUES
+(4, 'FPT Software', '0101248141', '17 Duy Tân, Cầu Giấy, Hà Nội', '024 7300 7300', 'https://fpt-software.com', 'Công nghệ thông tin');
+
+-- Demo internship
+INSERT INTO internships (company_id, title, description, requirements, quantity, location, status) VALUES
+(1, 'Backend Developer Intern', 'Phát triển API và backend với PHP/Laravel', 'GPA >= 3.0, biết PHP/MySQL', 3, 'Hà Nội', 'open'),
+(1, 'Frontend Developer Intern', 'Xây dựng giao diện với ReactJS', 'GPA >= 2.8, biết HTML/CSS/JS', 2, 'Hà Nội', 'open');

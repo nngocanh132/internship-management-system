@@ -1,402 +1,354 @@
+<?php
+$cur   = $_SERVER['REQUEST_URI'];
+$base  = BASE_PATH;
+$role  = getRole();
+$uid   = $_SESSION['user_id'] ?? 0;
+
+if(!function_exists('_isActive')){
+    function _isActive($p){ global $cur; return (strpos($cur,$p)!==false)?'active':''; }
+}
+
+$page_title = 'Dashboard';
+$title_map  = ['profile'=>'Hồ sơ','internship'=>'Vị trí Thực tập','application'=>'Đơn ứng tuyển',
+               'message'=>'Tin nhắn','interview'=>'Phỏng vấn','registration'=>'Quản lý Thực tập',
+               'evaluation'=>'Đánh giá','report'=>'Báo cáo','assignment'=>'Phân công GVHD',
+               'user'=>'Người dùng','company'=>'Doanh nghiệp','lecturer'=>'Giảng viên',
+               'admin'=>'Dashboard','student'=>'Dashboard','dashboard'=>'Dashboard'];
+foreach($title_map as $k=>$v)
+    if(str_contains(strtolower($cur),$k)){ $page_title=$v; break; }
+
+// Unread messages (chỉ student/company)
+$unread = 0;
+if(($role==='student'||$role==='company') && isset($conn))
+    $unread = getUnreadCount($conn,$uid);
+?>
 <!DOCTYPE html>
 <html lang="vi">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ISchool Internship</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,300;0,14..32,400;0,14..32,500;0,14..32,600;0,14..32,700;0,14..32,800;1,14..32,400&display=swap" rel="stylesheet">
-    <style>
-        :root {
-            --bg:        #E8E8DC;
-            --sidebar:   #4A6741;
-            --sid-dark:  #3a5232;
-            --sid-text:  rgba(255,255,255,.75);
-            --sid-active:#C8DFC4;
-            --card-bg:   #FFFFFF;
-            --mint:      #A8D5BA;
-            --mint-lt:   #D4EDE0;
-            --teal:      #7EC8C8;
-            --teal-lt:   #C8ECEC;
-            --accent:    #5A8A5A;
-            --text:      #2C3A2C;
-            --muted:     #7A8C7A;
-            --border:    rgba(74,103,65,.15);
-        }
-        *,*::before,*::after{box-sizing:border-box;}
-        body{
-            font-family:'Inter',system-ui,sans-serif;
-            background:var(--bg);
-            color:var(--text);
-            margin:0;
-            -webkit-font-smoothing:antialiased;
-        }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title><?=htmlspecialchars($page_title)?> — ISchool Internship</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ds:#5D7B6F; --ds2:#3D5A50; --ds3:#2A3F38;
+  --sg:#A4C3A2; --sm:#B0D4B8; --wc:#EAE7D6; --ib:#D7F9FA;
+  --td:#1A2E28; --tm:#4A6058; --tl:#7A9590;
+  --r8:8px; --r12:12px; --r16:16px; --r20:20px;
+  --sw:260px;
+}
+*,*::before,*::after{box-sizing:border-box}
+body{font-family:'Inter',sans-serif;background:#eef5f2;color:var(--td);margin:0}
+::-webkit-scrollbar{width:4px}::-webkit-scrollbar-thumb{background:var(--sg);border-radius:4px}
 
-        /* ── SIDEBAR ── */
-        .sidebar{
-            width:220px; min-height:100vh;
-            background:var(--sidebar);
-            position:fixed; top:0; left:0;
-            display:flex; flex-direction:column;
-            z-index:1000;
-        }
-        .sidebar-brand{
-            padding:28px 24px 20px;
-            font-size:1.25rem; font-weight:800;
-            color:#fff; letter-spacing:-.3px;
-        }
-        .sidebar-brand span{ color:var(--mint); }
-        .nav-section{ padding:6px 12px; }
-        .nav-section-label{
-            font-size:.62rem; font-weight:600;
-            text-transform:uppercase; letter-spacing:1px;
-            color:rgba(255,255,255,.35);
-            padding:8px 12px 4px;
-        }
-        .sidebar-link{
-            display:flex; align-items:center; gap:10px;
-            padding:10px 14px; border-radius:10px;
-            color:var(--sid-text); text-decoration:none;
-            font-size:.875rem; font-weight:500;
-            transition:all .15s; margin-bottom:2px;
-        }
-        .sidebar-link i{ font-size:.95rem; width:18px; text-align:center; flex-shrink:0; }
-        .sidebar-link:hover{ background:rgba(255,255,255,.12); color:#fff; }
-        .sidebar-link.active{
-            background:rgba(200,223,196,.2);
-            color:var(--sid-active);
-            font-weight:600;
-        }
-        .sidebar-user{
-            margin:auto 16px 16px;
-            padding:12px 14px;
-            background:rgba(255,255,255,.1);
-            border-radius:12px;
-        }
-        .sidebar-user .u-name{ font-size:.82rem; font-weight:700; color:#fff; }
-        .sidebar-user .u-role{ font-size:.7rem; color:rgba(255,255,255,.55); margin-top:1px; }
-        .sidebar-footer{
-            padding:0 12px 16px;
-        }
-        .sidebar-footer a{
-            display:flex; align-items:center; gap:8px;
-            padding:9px 14px; border-radius:10px;
-            color:rgba(255,255,255,.5); text-decoration:none;
-            font-size:.82rem; font-weight:500; transition:all .15s;
-        }
-        .sidebar-footer a:hover{ background:rgba(255,255,255,.08); color:rgba(255,255,255,.85); }
-        .sidebar-footer .logout-link{ color:rgba(168,213,186,.7); }
-        .sidebar-footer .logout-link:hover{ background:rgba(168,213,186,.12); color:var(--mint); }
+/* ── SIDEBAR ── */
+.sidebar{
+  width:var(--sw);height:100vh;
+  background:linear-gradient(180deg,var(--ds3) 0%,var(--ds2) 50%,#3a6258 100%);
+  position:fixed;top:0;left:0;z-index:999;
+  display:flex;flex-direction:column;
+  box-shadow:4px 0 20px rgba(0,0,0,.2);
+}
+.sb-top{overflow-y:auto;flex:1;padding-bottom:8px}
+.sb-brand{padding:20px 16px 16px;border-bottom:1px solid rgba(255,255,255,.1);
+  display:flex;align-items:center;gap:11px;flex-shrink:0}
+.sb-logo{width:40px;height:40px;background:linear-gradient(135deg,var(--sm),var(--sg));
+  border-radius:10px;display:flex;align-items:center;justify-content:center;
+  font-size:1.2rem;color:#fff;flex-shrink:0}
+.sb-title{font-family:'Plus Jakarta Sans',sans-serif;font-size:.88rem;font-weight:800;color:#fff}
+.sb-sub{font-size:.62rem;color:var(--sm);opacity:.75}
+.nav-sec{padding:12px 10px 2px}
+.nav-label{font-size:.58rem;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;
+  color:var(--sm);opacity:.5;padding:0 8px;margin-bottom:3px}
+.nav-a{display:flex;align-items:center;gap:9px;padding:8px 11px;border-radius:9px;
+  color:rgba(255,255,255,.62);text-decoration:none;font-size:.825rem;font-weight:500;
+  transition:all .16s;margin-bottom:1px;position:relative}
+.nav-a i{font-size:.9rem;width:16px;text-align:center;flex-shrink:0}
+.nav-a:hover{background:rgba(255,255,255,.1);color:#fff;transform:translateX(3px)}
+.nav-a.active{background:rgba(176,212,184,.2);color:#fff;
+  border-left:3px solid var(--sm);padding-left:8px}
+.msg-badge{background:var(--sm);color:var(--ds3);font-size:.6rem;padding:1px 6px;
+  border-radius:10px;font-weight:700;margin-left:auto;flex-shrink:0}
 
-        /* ── TOPBAR ── */
-        .topbar{
-            height:64px; background:var(--bg);
-            display:flex; align-items:center;
-            padding:0 32px;
-            position:sticky; top:0; z-index:900;
-            border-bottom:1px solid var(--border);
-        }
-        .topbar-title{ font-size:1.5rem; font-weight:800; color:var(--text); letter-spacing:-.4px; }
-        .topbar-sub{ font-size:.82rem; color:var(--muted); margin-top:1px; }
+/* ── SIDEBAR FOOTER (always visible) ── */
+.sb-footer{
+  padding:12px;border-top:1px solid rgba(255,255,255,.1);
+  background:rgba(42,63,56,.98);flex-shrink:0;
+}
+.sb-user{display:flex;align-items:center;gap:9px;padding:9px;
+  border-radius:9px;background:rgba(255,255,255,.07);margin-bottom:8px}
+.sb-avatar{width:32px;height:32px;border-radius:8px;
+  background:linear-gradient(135deg,var(--sm),var(--ib));
+  display:flex;align-items:center;justify-content:center;
+  color:var(--ds3);font-size:.82rem;font-weight:800;flex-shrink:0}
+.sb-uname{font-size:.78rem;font-weight:600;color:#fff;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sb-urole{font-size:.64rem;color:var(--sm);opacity:.8}
+.logout-a{display:flex;align-items:center;justify-content:center;gap:8px;
+  padding:9px 14px;border-radius:9px;
+  background:rgba(192,96,80,.25);border:1px solid rgba(192,96,80,.4);
+  color:#ffb3a7;text-decoration:none;font-size:.82rem;font-weight:700;
+  transition:all .2s;width:100%}
+.logout-a:hover{background:rgba(192,96,80,.45);color:#fff;border-color:rgba(192,96,80,.7)}
 
-        /* ── LAYOUT ── */
-        .main-wrapper{ margin-left:220px; min-height:100vh; display:flex; flex-direction:column; }
-        .main-content{ padding:28px 32px; flex:1; }
+/* ── TOPBAR ── */
+.topbar{height:60px;background:rgba(255,255,255,.96);backdrop-filter:blur(10px);
+  border-bottom:1px solid rgba(164,195,162,.2);display:flex;align-items:center;
+  padding:0 26px;position:sticky;top:0;z-index:900;
+  box-shadow:0 2px 10px rgba(93,123,111,.07)}
+.tb-title{font-family:'Plus Jakarta Sans',sans-serif;font-size:1rem;font-weight:800;color:var(--td)}
+.tb-sub{font-size:.7rem;color:var(--tl)}
+.tb-avatar{width:34px;height:34px;border-radius:9px;
+  background:linear-gradient(135deg,var(--ds),var(--sg));
+  display:flex;align-items:center;justify-content:center;
+  color:#fff;font-size:.85rem;font-weight:800;flex-shrink:0}
 
-        /* ── CARDS ── */
-        .card{
-            border:none; border-radius:20px;
-            background:var(--card-bg);
-            box-shadow:0 2px 8px rgba(44,58,44,.06);
-            transition:box-shadow .2s,transform .2s;
-        }
-        .card:hover{ box-shadow:0 6px 20px rgba(44,58,44,.1); }
+/* ── LAYOUT ── */
+.main-wrap{margin-left:var(--sw);min-height:100vh;display:flex;flex-direction:column}
+.main-content{padding:26px 28px;flex:1}
 
-        /* Stat cards */
-        .stat-card{
-            background:var(--card-bg); border-radius:20px;
-            padding:24px 26px; position:relative;
-            transition:transform .2s,box-shadow .2s;
-            cursor:default;
-        }
-        .stat-card:hover{ transform:translateY(-2px); box-shadow:0 8px 24px rgba(44,58,44,.1); }
-        .stat-card .stat-label{ font-size:.8rem; font-weight:600; color:var(--muted); margin-bottom:8px; }
-        .stat-card .stat-number{ font-size:2.4rem; font-weight:800; color:var(--text); line-height:1; margin-bottom:10px; }
-        .stat-card .stat-badge{
-            display:inline-block; padding:4px 12px;
-            border-radius:20px; font-size:.75rem; font-weight:600;
-        }
-        .stat-card .stat-link{
-            display:inline-flex; align-items:center; gap:4px;
-            font-size:.75rem; font-weight:600; text-decoration:none;
-            color:var(--accent); margin-top:10px;
-        }
-        .stat-card .stat-link:hover{ color:var(--sidebar); }
-        /* badge colors */
-        .badge-mint  { background:var(--mint-lt);  color:#2d6a4f; }
-        .badge-teal  { background:var(--teal-lt);  color:#1a6b6b; }
-        .badge-sage  { background:#e8f0e8; color:var(--accent); }
-        .badge-peach { background:#fde8d8; color:#b05a2a; }
-        .badge-lav   { background:#ede9fe; color:#5b21b6; }
-        /* keep old stat-* for index.php */
-        .stat-ev,.stat-terra,.stat-sage,.stat-blush,.stat-green,.stat-blue,.stat-purple,.stat-orange,.stat-mint,.stat-ice{
-            background:var(--card-bg);
-        }
-        .stat-ev .stat-number,.stat-terra .stat-number,.stat-sage .stat-number,
-        .stat-blush .stat-number,.stat-green .stat-number,.stat-blue .stat-number,
-        .stat-purple .stat-number,.stat-orange .stat-number,.stat-mint .stat-number,
-        .stat-ice .stat-number{ color:var(--text); }
-        .stat-ev .stat-link,.stat-terra .stat-link,.stat-sage .stat-link,
-        .stat-blush .stat-link,.stat-green .stat-link,.stat-blue .stat-link,
-        .stat-purple .stat-link,.stat-orange .stat-link,.stat-mint .stat-link,
-        .stat-ice .stat-link{ color:var(--accent); }
-        .stat-card .stat-icon{ display:none; }
+/* ── CARDS ── */
+.card{border:1px solid rgba(164,195,162,.18);border-radius:var(--r16);
+  background:#fff;box-shadow:0 2px 8px rgba(93,123,111,.08);transition:box-shadow .2s}
+.card:hover{box-shadow:0 4px 16px rgba(93,123,111,.13)}
+.card-body{padding:20px}
 
-        /* ── TABLE ── */
-        .table-card .card-header{
-            background:var(--card-bg);
-            border-bottom:1px solid var(--border);
-            padding:18px 24px;
-            border-radius:20px 20px 0 0 !important;
-            font-weight:700; font-size:.95rem; color:var(--text);
-        }
-        .table thead th{
-            background:#f4f6f2;
-            color:var(--muted);
-            font-size:.72rem; font-weight:700;
-            text-transform:uppercase; letter-spacing:.7px;
-            border-bottom:1px solid var(--border);
-            padding:12px 18px; white-space:nowrap;
-        }
-        .table tbody td{
-            padding:13px 18px; vertical-align:middle;
-            font-size:.875rem;
-            border-bottom:1px solid rgba(44,58,44,.05);
-            color:var(--text);
-        }
-        .table tbody tr:hover td{ background:rgba(168,213,186,.08); }
-        .table tbody tr:last-child td{ border-bottom:none; }
+/* ── STAT CARDS ── */
+.stat-card{border-radius:var(--r16);padding:20px 22px;position:relative;overflow:hidden;
+  transition:transform .2s,box-shadow .2s;border:none}
+.stat-card:hover{transform:translateY(-3px);box-shadow:0 8px 28px rgba(0,0,0,.15)}
+.stat-card .s-bg{position:absolute;right:-12px;bottom:-12px;font-size:4.5rem;opacity:.1}
+.stat-card .s-icon{width:42px;height:42px;border-radius:11px;display:flex;align-items:center;
+  justify-content:center;font-size:1.2rem;background:rgba(255,255,255,.2);color:#fff;margin-bottom:10px}
+.stat-card .s-num{font-family:'Plus Jakarta Sans',sans-serif;font-size:2.2rem;font-weight:800;color:#fff;line-height:1;margin-bottom:3px}
+.stat-card .s-lbl{font-size:.73rem;font-weight:600;color:rgba(255,255,255,.82);text-transform:uppercase;letter-spacing:.5px}
+.stat-card .s-link{display:inline-flex;align-items:center;gap:4px;color:rgba(255,255,255,.7);
+  font-size:.72rem;text-decoration:none;margin-top:8px;transition:all .2s}
+.stat-card .s-link:hover{color:#fff;gap:7px}
+.sc-green{background:linear-gradient(135deg,var(--ds),var(--ds2))}
+.sc-mint {background:linear-gradient(135deg,#4a9e6a,#2d7a50)}
+.sc-sage {background:linear-gradient(135deg,var(--sg),#7aab78)}
+.sc-warm {background:linear-gradient(135deg,#c49a6c,#a07040)}
+.sc-teal {background:linear-gradient(135deg,#4ab8c4,#2a95a2)}
+.sc-red  {background:linear-gradient(135deg,#c06050,#9a3030)}
 
-        /* ── BUTTONS ── */
-        .btn{ border-radius:10px; font-weight:600; font-size:.855rem; }
-        .btn-primary{ background:var(--sidebar); border:none; color:#fff; }
-        .btn-primary:hover{ background:var(--sid-dark); color:#fff; }
-        .btn-success{ background:#3a8a5a; border:none; color:#fff; }
-        .btn-warning{ background:#d4a843; border:none; color:#fff; }
-        .btn-warning:hover{ color:#fff; }
-        .btn-danger{ background:#d45a5a; border:none; color:#fff; }
-        .btn-secondary{ background:var(--mint-lt); border:none; color:var(--accent); }
-        .btn-secondary:hover{ background:var(--mint); color:var(--sid-dark); }
-        .btn-sm{ padding:5px 13px; font-size:.8rem; border-radius:8px; }
+/* ── TABLE ── */
+.tc .card-header{background:linear-gradient(90deg,rgba(234,231,214,.4),rgba(255,255,255,.8));
+  border-bottom:2px solid rgba(164,195,162,.2);padding:12px 18px;
+  border-radius:var(--r16) var(--r16) 0 0!important;
+  font-family:'Plus Jakarta Sans',sans-serif;font-weight:700;font-size:.85rem;color:var(--td)}
+.table thead th{background:rgba(164,195,162,.1);color:var(--tl);font-size:.67rem;font-weight:700;
+  text-transform:uppercase;letter-spacing:.8px;border-bottom:2px solid rgba(164,195,162,.18);
+  padding:10px 14px;white-space:nowrap}
+.table tbody td{padding:10px 14px;vertical-align:middle;font-size:.85rem;
+  border-bottom:1px solid rgba(164,195,162,.1);color:var(--td)}
+.table tbody tr:hover td{background:rgba(176,212,184,.06)}
+.table tbody tr:last-child td{border-bottom:none}
 
-        /* ── BADGES ── */
-        .badge{ border-radius:8px; font-weight:600; font-size:.72rem; padding:4px 10px; }
+/* ── BUTTONS ── */
+.btn{border-radius:var(--r8);font-weight:600;font-size:.83rem;transition:all .18s;border:none}
+.btn-primary{background:linear-gradient(135deg,var(--ds),var(--ds2));color:#fff}
+.btn-primary:hover{background:linear-gradient(135deg,var(--ds2),var(--ds3));color:#fff;transform:translateY(-1px)}
+.btn-success{background:linear-gradient(135deg,#4a9e6a,#2d7a50);color:#fff}
+.btn-warning{background:linear-gradient(135deg,#c49a6c,#a07040);color:#fff}
+.btn-warning:hover{background:linear-gradient(135deg,#a07040,#7a5020);color:#fff}
+.btn-danger{background:linear-gradient(135deg,#c06050,#9a3030);color:#fff}
+.btn-danger:hover{background:linear-gradient(135deg,#9a3030,#7a2020);color:#fff}
+.btn-secondary{background:rgba(160,160,160,.15);color:var(--tm);border:1px solid rgba(164,195,162,.3)!important}
+.btn-secondary:hover{background:var(--wc);color:var(--td)}
+.btn-outline-secondary{border:1.5px solid rgba(164,195,162,.35)!important;color:var(--tm);background:rgba(255,255,255,.8)}
+.btn-outline-secondary:hover{background:var(--wc);color:var(--td);border-color:var(--sg)!important}
+.btn-sm{padding:4px 10px;font-size:.76rem}
 
-        /* ── FORMS ── */
-        .form-control,.form-select{
-            border-radius:10px;
-            border:1.5px solid var(--border);
-            font-size:.875rem; padding:9px 14px;
-            background:#fafafa;
-            font-family:'Inter',system-ui,sans-serif;
-            transition:border-color .2s,box-shadow .2s;
-        }
-        .form-control:focus,.form-select:focus{
-            border-color:var(--accent);
-            box-shadow:0 0 0 3px rgba(90,138,90,.12);
-            background:#fff; outline:none;
-        }
-        .form-label{ font-weight:600; font-size:.82rem; color:var(--text); margin-bottom:6px; }
+/* ── BADGES ── */
+.badge{border-radius:5px;font-weight:600;font-size:.69rem;padding:3px 8px}
+.bg-primary{background:var(--ds)!important}
+.bg-success{background:#3d8a58!important}
+.bg-warning{background:#a07040!important}
+.bg-danger{background:#9a3030!important}
+.bg-secondary{background:var(--tl)!important}
 
-        /* ── PAGE HEADER ── */
-        .page-header{
-            display:flex; align-items:flex-start;
-            justify-content:space-between; margin-bottom:24px;
-        }
-        .page-header h4{ font-size:1.5rem; font-weight:800; color:var(--text); margin:0; letter-spacing:-.3px; }
-        .page-header .page-subtitle{ font-size:.82rem; color:var(--muted); margin-top:3px; }
+/* ── FORMS ── */
+.form-control,.form-select{border-radius:var(--r8);border:1.5px solid rgba(164,195,162,.32);
+  font-size:.86rem;padding:9px 13px;background:rgba(255,255,255,.9);transition:all .2s}
+.form-control:focus,.form-select:focus{border-color:var(--ds);
+  box-shadow:0 0 0 3px rgba(93,123,111,.12);background:#fff;outline:none}
+.form-label{font-weight:600;font-size:.78rem;color:var(--tm);margin-bottom:4px}
+.input-group-text{border-radius:var(--r8) 0 0 var(--r8);
+  border:1.5px solid rgba(164,195,162,.32);background:var(--wc);color:var(--tl);border-right:none}
+.input-group .form-control{border-radius:0 var(--r8) var(--r8) 0;border-left-color:transparent}
 
-        /* ── ALERTS ── */
-        .alert{ border:none; border-radius:14px; font-size:.875rem; padding:13px 18px; }
-        .alert-warning{ background:#fef9e7; color:#7c5c00; border-left:4px solid #f0c040; }
-        .alert-danger { background:#fef2f2; color:#991b1b; border-left:4px solid #f87171; }
-        .alert-success{ background:#f0fdf4; color:#166534; border-left:4px solid #4ade80; }
-        .alert-info   { background:var(--teal-lt); color:#1a6b6b; border-left:4px solid var(--teal); }
+/* ── PAGE HEADER ── */
+.ph{display:flex;align-items:center;justify-content:space-between;
+  margin-bottom:22px;padding-bottom:14px;border-bottom:2px solid rgba(164,195,162,.18)}
+.ph h4{font-family:'Plus Jakarta Sans',sans-serif;font-size:1.25rem;font-weight:800;color:var(--td);margin:0}
+.ph-sub{font-size:.74rem;color:var(--tl);margin-top:2px}
 
-        /* ── PROGRESS ── */
-        .progress{ border-radius:99px; background:var(--mint-lt); height:8px; }
-        .progress-bar{ border-radius:99px; background:var(--sidebar); }
+/* ── ALERTS ── */
+.alert{border:none;border-radius:var(--r12);font-size:.85rem;padding:12px 16px}
+.alert-success{background:rgba(74,158,106,.12);color:#1a4a30;border-left:4px solid #4a9e6a}
+.alert-danger{background:rgba(192,96,80,.08);color:#7a2020;border-left:4px solid #c06050}
+.alert-warning{background:rgba(234,231,214,.7);color:#5a4a20;border-left:4px solid #c49a6c}
+.alert-info{background:rgba(74,138,150,.1);color:#1a3a4a;border-left:4px solid #4ab8c4}
 
-        /* ── MISC ── */
-        .avatar-sm{
-            width:36px; height:36px; border-radius:10px;
-            display:inline-flex; align-items:center; justify-content:center;
-            font-size:.82rem; font-weight:700; flex-shrink:0;
-        }
-        .section-divider{ height:1px; background:var(--border); margin:20px 0; }
-        .quick-action-card{
-            border-radius:16px; padding:16px 18px;
-            display:flex; align-items:center; gap:14px;
-            text-decoration:none; color:inherit;
-            background:var(--card-bg);
-            border:1.5px solid var(--border);
-            transition:all .2s;
-        }
-        .quick-action-card:hover{
-            border-color:var(--accent);
-            box-shadow:0 4px 16px rgba(44,58,44,.1);
-            transform:translateY(-2px); color:inherit;
-        }
-        .quick-action-card .qa-icon{
-            width:42px; height:42px; border-radius:12px;
-            display:flex; align-items:center; justify-content:center;
-            font-size:1.2rem; flex-shrink:0;
-        }
-        .quick-action-card .qa-title{ font-weight:700; font-size:.875rem; color:var(--text); }
-        .quick-action-card .qa-sub  { font-size:.75rem; color:var(--muted); }
+/* ── QUICK ACTION ── */
+.qa{border-radius:var(--r12);padding:12px 14px;display:flex;align-items:center;gap:12px;
+  text-decoration:none;color:inherit;background:#fff;
+  border:1.5px solid rgba(164,195,162,.22);transition:all .2s}
+.qa:hover{border-color:var(--ds);box-shadow:0 4px 14px rgba(93,123,111,.14);
+  transform:translateY(-2px);color:inherit}
+.qa-icon{width:38px;height:38px;border-radius:9px;display:flex;align-items:center;
+  justify-content:center;font-size:1.1rem;flex-shrink:0}
+.qa-title{font-weight:700;font-size:.84rem;color:var(--td)}
+.qa-sub{font-size:.71rem;color:var(--tl)}
 
-        /* ── SCROLLBAR ── */
-        ::-webkit-scrollbar{ width:5px; }
-        ::-webkit-scrollbar-track{ background:transparent; }
-        ::-webkit-scrollbar-thumb{ background:var(--mint); border-radius:99px; }
-        ::-webkit-scrollbar-thumb:hover{ background:var(--accent); }
-    </style>
+/* ── AVATAR ── */
+.av{width:32px;height:32px;border-radius:7px;
+  background:linear-gradient(135deg,var(--ds),var(--sg));
+  display:flex;align-items:center;justify-content:center;
+  color:#fff;font-size:.78rem;font-weight:800;flex-shrink:0}
+
+/* ── ANIMATIONS ── */
+@keyframes fadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+.fu{animation:fadeUp .32s ease both}
+.fu1{animation:fadeUp .32s .06s ease both}
+.fu2{animation:fadeUp .32s .12s ease both}
+.fu3{animation:fadeUp .32s .18s ease both}
+.fu4{animation:fadeUp .32s .24s ease both}
+
+/* ── MISC ── */
+.fw7{font-weight:700!important}.fw8{font-weight:800!important}
+hr{border-color:rgba(164,195,162,.22)!important}
+@media(max-width:768px){.sidebar{transform:translateX(-100%)}.main-wrap{margin-left:0}.main-content{padding:14px}}
+</style>
 </head>
 <body>
 
-<?php
-$current_page = $_SERVER['REQUEST_URI'];
-function isActive($path) {
-    global $current_page;
-    return strpos($current_page, $path) !== false ? 'active' : '';
-}
-$script_url = str_replace('\\', '/', $_SERVER['SCRIPT_NAME']);
-$pos = strpos($script_url, '/internship_system');
-$sys = ($pos !== false) ? substr($script_url, 0, $pos) . '/internship_system' : '/internship_system';
-$role      = $_SESSION['role']      ?? 'guest';
-$full_name = $_SESSION['full_name'] ?? 'Khách';
-$initials  = strtoupper(mb_substr($full_name, 0, 1));
-$role_labels = ['admin'=>'Quản trị viên','lecturer'=>'Giảng viên','company'=>'Doanh nghiệp','student'=>'Sinh viên'];
-$role_label  = $role_labels[$role] ?? 'Người dùng';
-?>
-
 <div class="sidebar">
-    <div class="sidebar-brand">ISCHOOL<span>.</span></div>
-
-    <?php if ($role === 'admin' || $role === 'lecturer'): ?>
-    <div class="nav-section">
-        <div class="nav-section-label">Tổng quan</div>
-        <a href="<?= $sys ?>/index.php" class="sidebar-link <?= isActive('/index.php') && !isActive('/modules/') ? 'active' : '' ?>">
-            <i class="bi bi-grid-fill"></i> Dashboard
-        </a>
-    </div>
-    <div class="nav-section">
-        <div class="nav-section-label">Người dùng</div>
-        <a href="<?= $sys ?>/modules/users/list.php" class="sidebar-link <?= isActive('/users/') ?>">
-            <i class="bi bi-people-fill"></i> Người dùng
-        </a>
-        <a href="<?= $sys ?>/modules/departments/list.php" class="sidebar-link <?= isActive('/departments/') ?>">
-            <i class="bi bi-diagram-3-fill"></i> Khoa / Bộ môn
-        </a>
-        <a href="<?= $sys ?>/modules/companies/list.php" class="sidebar-link <?= isActive('/companies/') ?>">
-            <i class="bi bi-building-fill"></i> Doanh nghiệp
-        </a>
-    </div>
-    <div class="nav-section">
-        <div class="nav-section-label">Thực tập</div>
-        <a href="<?= $sys ?>/modules/positions/list.php" class="sidebar-link <?= isActive('/positions/') && !isActive('/position_skills/') ? 'active' : '' ?>">
-            <i class="bi bi-briefcase-fill"></i> Vị trí thực tập
-        </a>
-        <a href="<?= $sys ?>/modules/skills/list.php" class="sidebar-link <?= isActive('/skills/') && !isActive('/position_skills/') ? 'active' : '' ?>">
-            <i class="bi bi-lightning-charge-fill"></i> Kỹ năng
-        </a>
-        <a href="<?= $sys ?>/modules/position_skills/list.php" class="sidebar-link <?= isActive('/position_skills/') ?>">
-            <i class="bi bi-tags-fill"></i> Kỹ năng – Vị trí
-        </a>
-        <a href="<?= $sys ?>/modules/registrations/list.php" class="sidebar-link <?= isActive('/registrations/') ?>">
-            <i class="bi bi-clipboard-check-fill"></i> Đăng ký
-        </a>
-        <a href="<?= $sys ?>/modules/assignments/list.php" class="sidebar-link <?= isActive('/assignments/') ?>">
-            <i class="bi bi-person-check-fill"></i> Phân công GVHD
-        </a>
-    </div>
-    <div class="nav-section">
-        <div class="nav-section-label">Đánh giá</div>
-        <a href="<?= $sys ?>/modules/journals/list.php" class="sidebar-link <?= isActive('/journals/') ?>">
-            <i class="bi bi-journal-richtext"></i> Nhật ký
-        </a>
-        <a href="<?= $sys ?>/modules/company_eval/list.php" class="sidebar-link <?= isActive('/company_eval/') ?>">
-            <i class="bi bi-star-fill"></i> Đánh giá DN
-        </a>
-        <a href="<?= $sys ?>/modules/lecturer_eval/list.php" class="sidebar-link <?= isActive('/lecturer_eval/') ?>">
-            <i class="bi bi-patch-check-fill"></i> Đánh giá GV
-        </a>
-        <a href="<?= $sys ?>/modules/grades/list.php" class="sidebar-link <?= isActive('/grades/') ?>">
-            <i class="bi bi-award-fill"></i> Điểm tổng hợp
-        </a>
+  <!-- Scrollable top -->
+  <div class="sb-top">
+    <div class="sb-brand">
+      <div class="sb-logo"><i class="bi bi-mortarboard-fill"></i></div>
+      <div>
+        <div class="sb-title">ISchool Internship</div>
+        <div class="sb-sub">Management System</div>
+      </div>
     </div>
 
-    <?php elseif ($role === 'company'): ?>
-    <div class="nav-section">
-        <a href="<?= $sys ?>/index.php" class="sidebar-link <?= isActive('/index.php') && !isActive('/modules/') ? 'active' : '' ?>"><i class="bi bi-grid-fill"></i> Dashboard</a>
-        <a href="<?= $sys ?>/modules/positions/list.php" class="sidebar-link <?= isActive('/positions/') ?>"><i class="bi bi-briefcase-fill"></i> Vị trí thực tập</a>
-        <a href="<?= $sys ?>/modules/registrations/list.php" class="sidebar-link <?= isActive('/registrations/') ?>"><i class="bi bi-clipboard-check-fill"></i> Sinh viên đăng ký</a>
-        <a href="<?= $sys ?>/modules/journals/list.php" class="sidebar-link <?= isActive('/journals/') ?>"><i class="bi bi-journal-richtext"></i> Nhật ký</a>
-        <a href="<?= $sys ?>/modules/company_eval/list.php" class="sidebar-link <?= isActive('/company_eval/') ?>"><i class="bi bi-star-fill"></i> Đánh giá</a>
+    <?php if($role==='admin'): ?>
+    <div class="nav-sec">
+      <div class="nav-label">Tổng quan</div>
+      <a href="<?=$base?>/dashboard/admin.php"   class="nav-a <?=_isActive('/dashboard/admin')?>"><i class="bi bi-speedometer2"></i> Dashboard</a>
+    </div>
+    <div class="nav-sec">
+      <div class="nav-label">Quản lý hệ thống</div>
+      <a href="<?=$base?>/modules/users/list.php"                class="nav-a <?=_isActive('/users/')?>"><i class="bi bi-people-fill"></i> Người dùng</a>
+      <a href="<?=$base?>/modules/student_profiles/list.php"     class="nav-a <?=_isActive('/student_profiles/')?>"><i class="bi bi-mortarboard-fill"></i> Hồ sơ Sinh viên</a>
+      <a href="<?=$base?>/modules/company_profiles/list.php"     class="nav-a <?=_isActive('/company_profiles/')?>"><i class="bi bi-building-fill"></i> Hồ sơ DN</a>
+      <a href="<?=$base?>/modules/lecturer_profiles/list.php"    class="nav-a <?=_isActive('/lecturer_profiles/')?>"><i class="bi bi-person-workspace"></i> Giảng viên</a>
+    </div>
+    <div class="nav-sec">
+      <div class="nav-label">Thực tập</div>
+      <a href="<?=$base?>/modules/internships/list.php"          class="nav-a <?=_isActive('/internships/')?>"><i class="bi bi-briefcase-fill"></i> Vị trí thực tập</a>
+      <a href="<?=$base?>/modules/applications/list.php"         class="nav-a <?=_isActive('/applications/')?>"><i class="bi bi-clipboard-check-fill"></i> Xét duyệt đơn</a>
+      <a href="<?=$base?>/modules/registrations/list.php"        class="nav-a <?=_isActive('/registrations/list')?>"><i class="bi bi-journal-richtext"></i> Đang thực tập</a>
+      <a href="<?=$base?>/modules/registrations/assign.php" class="nav-a <?=_isActive('/registrations/assign')?>"><i class="bi bi-person-check-fill"></i> Phân công GVHD</a>
+    </div>
+    <div class="nav-sec">
+      <div class="nav-label">Kết quả</div>
+      <a href="<?=$base?>/modules/evaluations/list.php"          class="nav-a <?=_isActive('/evaluations/')?>"><i class="bi bi-star-fill"></i> Đánh giá</a>
+      <a href="<?=$base?>/modules/reports/list.php"              class="nav-a <?=_isActive('/reports/')?>"><i class="bi bi-file-earmark-text-fill"></i> Báo cáo TT</a>
     </div>
 
-    <?php elseif ($role === 'student'): ?>
-    <div class="nav-section">
-        <a href="<?= $sys ?>/index.php" class="sidebar-link <?= isActive('/index.php') && !isActive('/modules/') ? 'active' : '' ?>"><i class="bi bi-grid-fill"></i> Dashboard</a>
-        <a href="<?= $sys ?>/modules/positions/list.php" class="sidebar-link <?= isActive('/positions/') ?>"><i class="bi bi-briefcase-fill"></i> Tìm vị trí</a>
-        <a href="<?= $sys ?>/modules/registrations/list.php" class="sidebar-link <?= isActive('/registrations/') ?>"><i class="bi bi-clipboard-check-fill"></i> Đăng ký của tôi</a>
-        <a href="<?= $sys ?>/modules/journals/list.php" class="sidebar-link <?= isActive('/journals/') ?>"><i class="bi bi-journal-richtext"></i> Nhật ký</a>
-        <a href="<?= $sys ?>/modules/grades/list.php" class="sidebar-link <?= isActive('/grades/') ?>"><i class="bi bi-award-fill"></i> Điểm của tôi</a>
+    <?php elseif($role==='student'): ?>
+    <div class="nav-sec">
+      <div class="nav-label">Sinh viên</div>
+      <a href="<?=$base?>/dashboard/student.php" class="nav-a <?=_isActive('/dashboard/student')?>"><i class="bi bi-speedometer2"></i> Dashboard</a>
+      <a href="<?=$base?>/modules/student_profiles/edit.php" class="nav-a <?=_isActive('/student_profiles/edit')?>"><i class="bi bi-person-circle"></i> Hồ sơ của tôi</a>
+      <a href="<?=$base?>/modules/internships/browse.php" class="nav-a <?=_isActive('/internships/browse')?>"><i class="bi bi-search"></i> Tìm việc thực tập</a>
+      <a href="<?=$base?>/modules/applications/my_applications.php" class="nav-a <?=_isActive('/applications/my')?>"><i class="bi bi-clipboard-check-fill"></i> Đơn ứng tuyển</a>
+      <a href="<?=$base?>/modules/registrations/my_internship.php" class="nav-a <?=_isActive('/registrations/my')?>"><i class="bi bi-briefcase-fill"></i> Thực tập của tôi</a>
+      <a href="<?=$base?>/modules/reports/submit.php" class="nav-a <?=_isActive('/reports/submit')?>"><i class="bi bi-file-earmark-arrow-up-fill"></i> Nộp báo cáo</a>
+    </div>
+    <div class="nav-sec">
+      <div class="nav-label">Liên lạc</div>
+      <a href="<?=$base?>/modules/messages/inbox.php" class="nav-a <?=_isActive('/messages/inbox')?>">
+        <i class="bi bi-chat-dots-fill"></i> Tin nhắn với DN
+        <?php if($unread>0): ?><span class="msg-badge"><?=$unread?></span><?php endif; ?>
+      </a>
+      <a href="<?=$base?>/modules/messages/lecturer_chat.php" class="nav-a <?=_isActive('/messages/lecturer_chat')?>">
+        <i class="bi bi-person-workspace"></i> Nhắn tin GVHD
+      </a>
     </div>
 
-    <?php else: ?>
-    <div class="nav-section">
-        <a href="<?= $sys ?>/auth/login.php" class="sidebar-link"><i class="bi bi-box-arrow-in-right"></i> Đăng nhập</a>
+    <?php elseif($role==='company'): ?>
+    <div class="nav-sec">
+      <div class="nav-label">Doanh nghiệp</div>
+      <a href="<?=$base?>/dashboard/company.php" class="nav-a <?=_isActive('/dashboard/company')?>"><i class="bi bi-speedometer2"></i> Dashboard</a>
+      <a href="<?=$base?>/modules/company_profiles/edit.php" class="nav-a <?=_isActive('/company_profiles/edit')?>"><i class="bi bi-building-fill"></i> Hồ sơ DN</a>
+      <a href="<?=$base?>/modules/internships/my_jobs.php" class="nav-a <?=_isActive('/internships/my_jobs')?>"><i class="bi bi-briefcase-fill"></i> Vị trí Thực tập</a>
+      <a href="<?=$base?>/modules/applications/company_candidates.php" class="nav-a <?=_isActive('/applications/company_candidates')?>"><i class="bi bi-people-fill"></i> Danh sách Ứng viên</a>
+      <a href="<?=$base?>/modules/evaluations/add.php" class="nav-a <?=_isActive('/evaluations/')?>"><i class="bi bi-star-fill"></i> Đánh giá SV</a>
+    </div>
+    <div class="nav-sec">
+      <div class="nav-label">Liên lạc</div>
+      <a href="<?=$base?>/modules/messages/inbox.php" class="nav-a <?=_isActive('/messages/')?>">
+        <i class="bi bi-chat-dots-fill"></i> Tin nhắn
+        <?php if($unread>0): ?><span class="msg-badge"><?=$unread?></span><?php endif; ?>
+      </a>
+    </div>
+
+    <?php elseif($role==='lecturer'): ?>
+    <div class="nav-sec">
+      <div class="nav-label">Giảng viên</div>
+      <a href="<?=$base?>/dashboard/lecturer.php" class="nav-a <?=_isActive('/dashboard/lecturer')?>"><i class="bi bi-speedometer2"></i> Dashboard</a>
+      <a href="<?=$base?>/modules/registrations/my_students.php" class="nav-a <?=_isActive('/registrations/my_students')?>"><i class="bi bi-people-fill"></i> SV được phân công</a>
+      <a href="<?=$base?>/modules/reports/review.php" class="nav-a <?=_isActive('/reports/review')?>"><i class="bi bi-file-earmark-check-fill"></i> Duyệt báo cáo</a>
+    </div>
+    <div class="nav-sec">
+      <div class="nav-label">Liên lạc</div>
+      <a href="<?=$base?>/modules/messages/lecturer_chat.php" class="nav-a <?=_isActive('/messages/lecturer_chat')?>">
+        <i class="bi bi-chat-dots-fill"></i> Nhắn tin với SV
+        <?php if(($role==='lecturer')&&isset($conn)){$_uc=getUnreadCount($conn,$uid);if($_uc>0):?><span class="msg-badge"><?=$_uc?></span><?php endif;}?>
+      </a>
     </div>
     <?php endif; ?>
+  </div><!-- /sb-top -->
 
-    <div class="sidebar-user">
-        <div class="u-name"><?= htmlspecialchars($full_name) ?></div>
-        <div class="u-role"><?= $role_label ?></div>
+  <!-- Always-visible footer -->
+  <div class="sb-footer">
+    <div class="sb-user">
+      <div class="sb-avatar"><?=strtoupper(mb_substr($_SESSION['full_name']??'U',0,1))?></div>
+      <div style="flex:1;min-width:0">
+        <div class="sb-uname"><?=htmlspecialchars($_SESSION['full_name']??'Tài khoản')?></div>
+        <div class="sb-urole"><?=getRoleLabel($role)?></div>
+      </div>
     </div>
-
-    <div class="sidebar-footer">
-        <?php if (isLoggedIn()): ?>
-        <a href="<?= $sys ?>/auth/logout.php" class="logout-link">
-            <i class="bi bi-box-arrow-right"></i> Đăng xuất
-        </a>
-        <?php endif; ?>
-    </div>
+    <a href="<?=$base?>/auth/logout.php" class="logout-a">
+      <i class="bi bi-box-arrow-right"></i> Đăng xuất
+    </a>
+  </div>
 </div>
 
-<div class="main-wrapper">
-    <div class="topbar">
-        <?php
-        $titles = [
-            'users'=>'Người dùng','departments'=>'Khoa / Bộ môn','companies'=>'Doanh nghiệp',
-            'position_skills'=>'Kỹ năng – Vị trí','positions'=>'Vị trí Thực tập',
-            'skills'=>'Kỹ năng','registrations'=>'Đăng ký Thực tập',
-            'assignments'=>'Phân công GVHD','journals'=>'Nhật ký',
-            'company_eval'=>'Đánh giá DN','lecturer_eval'=>'Đánh giá GV',
-            'grades'=>'Điểm Tổng hợp','index'=>'Dashboard',
-        ];
-        $page_key='index';
-        foreach ($titles as $k=>$v) { if (strpos($current_page,$k)!==false){$page_key=$k;break;} }
-        ?>
-        <div>
-            <div class="topbar-title"><?= $titles[$page_key] ?></div>
-            <div class="topbar-sub"><?= date('l, d/m/Y') ?></div>
-        </div>
-        <div class="ms-auto d-flex align-items-center gap-3">
-            <div style="width:36px;height:36px;border-radius:50%;background:var(--mint);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:.85rem;color:var(--sid-dark);">
-                <?= $initials ?>
-            </div>
-        </div>
+<div class="main-wrap">
+  <div class="topbar">
+    <div>
+      <div class="tb-title"><?=htmlspecialchars($page_title)?></div>
+      <div class="tb-sub">ISchool Internship System</div>
     </div>
-    <div class="main-content">
+    <div class="ms-auto d-flex align-items-center gap-3">
+      <div style="background:rgba(164,195,162,.15);padding:5px 11px;border-radius:7px;font-size:.75rem;color:var(--ds);font-weight:600">
+        <i class="bi bi-calendar3 me-1"></i><?=date('d/m/Y')?>
+      </div>
+      <div class="d-flex align-items-center gap-2">
+        <div class="tb-avatar"><?=strtoupper(mb_substr($_SESSION['full_name']??'U',0,1))?></div>
+        <div>
+          <div style="font-size:.82rem;font-weight:700;color:var(--td);line-height:1.2"><?=htmlspecialchars($_SESSION['full_name']??'')?></div>
+          <div style="font-size:.68rem;color:var(--tl)"><?=getRoleLabel($role)?></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="main-content">
