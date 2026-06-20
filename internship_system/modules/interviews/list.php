@@ -2,120 +2,96 @@
 session_start();
 require_once '../../config/database.php';
 require_once '../../includes/functions.php';
+requireRole(['admin','company','student']);
 
-if (isset($_GET['delete'])) {
-    $id = (int)$_GET['delete'];
-    $stmt = $conn->prepare("DELETE FROM lecturer_evaluations WHERE evaluation_id=?");
-    $stmt->bind_param('i', $id);
-    $stmt->execute();
-    setFlash('success', 'Đã xóa đánh giá.');
-    redirect('list.php');
+$uid=$_SESSION['user_id']; $role=getRole();
+
+$sql="SELECT iv.*,a.status AS app_status,sp.full_name,sp.student_code,sp.avatar AS s_av,
+      cp.company_name,cp.logo AS c_logo,i.title,a.application_id,
+      sp.student_id, cp.company_id
+      FROM interviews iv
+      JOIN applications a ON iv.application_id=a.application_id
+      JOIN student_profiles sp ON a.student_id=sp.student_id
+      JOIN internships i ON a.internship_id=i.internship_id
+      JOIN company_profiles cp ON i.company_id=cp.company_id
+      WHERE 1=1";
+
+if($role==='student'){
+    $sq=$conn->prepare("SELECT student_id FROM student_profiles WHERE user_id=?"); $sq->bind_param('i',$uid); $sq->execute();
+    $sid=$sq->get_result()->fetch_assoc()['student_id']??0;
+    $sql.=" AND a.student_id=$sid";
+} elseif($role==='company'){
+    $cq=$conn->prepare("SELECT company_id FROM company_profiles WHERE user_id=?"); $cq->bind_param('i',$uid); $cq->execute();
+    $cid=$cq->get_result()->fetch_assoc()['company_id']??0;
+    $sql.=" AND cp.company_id=$cid";
 }
-
-$evals = $conn->query(
-    "SELECT e.*, u_stu.full_name AS student_name, u_stu.student_code,
-            u_lec.full_name AS lecturer_name,
-            p.title AS position_title, c.name AS company_name
-     FROM lecturer_evaluations e
-     JOIN internship_assignments a ON e.assignment_id = a.assignment_id
-     JOIN users u_lec ON e.lecturer_id = u_lec.user_id
-     JOIN internship_registrations r ON a.registration_id = r.registration_id
-     JOIN users u_stu ON r.student_id = u_stu.user_id
-     JOIN internship_positions p ON r.position_id = p.position_id
-     JOIN companies c ON p.company_id = c.company_id
-     ORDER BY e.evaluated_at DESC"
-)->fetch_all(MYSQLI_ASSOC);
+$sql.=" ORDER BY iv.interview_date DESC";
+$ivs=$conn->query($sql)->fetch_all(MYSQLI_ASSOC);
 ?>
 <?php include '../../includes/header.php'; ?>
-
-<div class="page-header">
-    <div>
-        <h4><i class="bi bi-patch-check-fill me-2" style="color:var(--evergreen)"></i>Đánh giá từ Giảng viên</h4>
-        <div class="page-subtitle">Tổng: <?= count($evals) ?> đánh giá</div>
-    </div>
-    <a href="add.php" class="btn btn-primary btn-sm"><i class="bi bi-plus-lg me-1"></i>Thêm đánh giá</a>
+<div class="ph fu">
+  <div><h4><i class="bi bi-camera-video-fill me-2"></i>Lịch Phỏng vấn</h4><div class="ph-sub">Tổng: <?=count($ivs)?></div></div>
 </div>
-
 <?php showFlash(); ?>
 
-<div class="card table-card">
-    <div class="card-header d-flex justify-content-between align-items-center">
-        <span><i class="bi bi-table me-2"></i>Danh sách đánh giá</span>
-        <span class="badge" style="background:var(--ev-light);color:var(--evergreen);font-size:.78rem;"><?= count($evals) ?> kết quả</span>
-    </div>
-    <div class="card-body p-0">
-        <table class="table mb-0">
-            <thead>
-                <tr>
-                    <th>#</th>
-                    <th>Sinh viên</th>
-                    <th>Vị trí / Doanh nghiệp</th>
-                    <th>Giảng viên</th>
-                    <th class="text-center">Điểm</th>
-                    <th>Nhận xét</th>
-                    <th>Ngày đánh giá</th>
-                    <th style="width:90px">Thao tác</th>
-                </tr>
-            </thead>
-            <tbody>
-            <?php if (empty($evals)): ?>
-                <tr><td colspan="8" class="text-center py-5">
-                    <i class="bi bi-inbox fs-1 d-block mb-2 text-muted opacity-25"></i>
-                    <span class="text-muted">Chưa có đánh giá nào</span>
-                </td></tr>
-            <?php else: ?>
-                <?php foreach ($evals as $i => $e):
-                    $colors = ['var(--evergreen)','var(--terracotta)','var(--sage)','#8b5cf6','#0ea5e9'];
-                    $color  = $colors[crc32($e['student_name']) % count($colors)];
-                    $ini    = strtoupper(mb_substr($e['student_name'], 0, 1));
-                    $scoreColor = ($e['score'] ?? 0) >= 5 ? 'var(--evergreen)' : 'var(--terracotta)';
-                ?>
-                <tr>
-                    <td style="color:var(--sage);font-size:.8rem"><?= $i + 1 ?></td>
-                    <td>
-                        <div class="d-flex align-items-center gap-2">
-                            <div class="avatar-sm" style="background:<?= $color ?>20;color:<?= $color ?>"><?= $ini ?></div>
-                            <div>
-                                <div class="fw-semibold" style="font-size:.875rem"><?= htmlspecialchars($e['student_name']) ?></div>
-                                <div style="font-size:.75rem;color:var(--sage)"><?= htmlspecialchars($e['student_code'] ?? '') ?></div>
-                            </div>
-                        </div>
-                    </td>
-                    <td>
-                        <div style="font-size:.875rem;font-weight:500"><?= htmlspecialchars($e['position_title']) ?></div>
-                        <div style="font-size:.75rem;color:var(--sage)"><?= htmlspecialchars($e['company_name']) ?></div>
-                    </td>
-                    <td style="font-size:.85rem"><?= htmlspecialchars($e['lecturer_name'] ?? '—') ?></td>
-                    <td class="text-center">
-                        <span style="font-size:1.1rem;font-weight:800;color:<?= $scoreColor ?>">
-                            <?= number_format($e['score'], 2) ?>
-                        </span>
-                    </td>
-                    <td style="font-size:.82rem;color:#374151;max-width:200px">
-                        <?= htmlspecialchars(mb_substr($e['feedback'] ?? '', 0, 80)) ?>
-                        <?= strlen($e['feedback'] ?? '') > 80 ? '...' : '' ?>
-                    </td>
-                    <td style="font-size:.78rem;color:var(--sage);white-space:nowrap">
-                        <?= date('d/m/Y', strtotime($e['evaluated_at'])) ?>
-                    </td>
-                    <td>
-                        <div class="d-flex gap-1">
-                            <a href="edit.php?id=<?= $e['evaluation_id'] ?>" class="btn btn-warning btn-sm">
-                                <i class="bi bi-pencil-fill"></i>
-                            </a>
-                            <a href="list.php?delete=<?= $e['evaluation_id'] ?>"
-                               class="btn btn-danger btn-sm"
-                               onclick="return confirm('Xóa đánh giá này?')">
-                                <i class="bi bi-trash-fill"></i>
-                            </a>
-                        </div>
-                    </td>
-                </tr>
-                <?php endforeach; ?>
-            <?php endif; ?>
-            </tbody>
-        </table>
-    </div>
-</div>
+<?php if(empty($ivs)): ?>
+<div class="card text-center py-5 fu1"><div class="card-body">
+  <i class="bi bi-camera-video" style="font-size:3rem;color:var(--tl)"></i>
+  <h5 class="mt-3 fw7">Chưa có lịch phỏng vấn</h5>
+  <p class="text-muted">Lịch phỏng vấn được tạo khi doanh nghiệp nhắn tin hẹn lịch.</p>
+</div></div>
+<?php else: ?>
+<div class="row g-3 fu1">
+<?php foreach($ivs as $i=>$iv):
+  $result_map=['pending'=>['⏳ Chờ kết quả','rgba(196,154,108,.12)','#a07040'],'passed'=>['🎉 Đậu phỏng vấn','rgba(74,158,106,.14)','#2d6a40'],'failed'=>['😞 Không đậu','rgba(192,96,80,.14)','#9a3030']];
+  [$rl,$rb,$rc]=$result_map[$iv['result']]??['—','rgba(160,160,160,.1)','#5a5a5a'];
+  $sav=$iv['s_av']?UPLOAD_URL.'/'.$iv['s_av']:'https://ui-avatars.com/api/?name='.urlencode($iv['full_name']).'&background=5D7B6F&color=fff&size=60';
+  $clogo=$iv['c_logo']?UPLOAD_URL.'/'.$iv['c_logo']:'https://ui-avatars.com/api/?name='.urlencode($iv['company_name']).'&background=A4C3A2&color=2A3F38&size=60';
+  $chat_params=$role==='student'?['company_id'=>$iv['company_id'],'app_id'=>$iv['application_id']]:['student_id'=>$iv['student_id'],'app_id'=>$iv['application_id']];
+?>
+<div class="col-md-6" style="animation:fadeUp .32s <?=$i*.04?>s ease both">
+  <div class="card" style="border:1.5px solid <?=$rc?>;border-radius:14px">
+    <div class="card-body">
+      <div class="d-flex align-items-center gap-3 mb-3">
+        <img src="<?=$sav?>" style="width:42px;height:42px;border-radius:50%;object-fit:cover">
+        <div>
+          <div class="fw7"><?=htmlspecialchars($iv['full_name'])?></div>
+          <div class="small text-muted"><?=htmlspecialchars($iv['student_code']??'')?></div>
+        </div>
+        <div class="ms-auto text-end">
+          <img src="<?=$clogo?>" style="width:32px;height:32px;border-radius:8px;object-fit:cover">
+          <div class="small text-muted" style="font-size:.7rem"><?=htmlspecialchars($iv['company_name'])?></div>
+        </div>
+      </div>
 
+      <div class="fw7 small mb-2" style="color:var(--td)"><?=htmlspecialchars($iv['title'])?></div>
+
+      <div style="background:rgba(164,195,162,.08);border-radius:10px;padding:12px;margin-bottom:12px">
+        <?php if($iv['interview_date']): ?>
+        <div class="small mb-1"><i class="bi bi-calendar-event me-2" style="color:var(--ds)"></i>
+          <strong><?=date('d/m/Y H:i',strtotime($iv['interview_date']))?></strong>
+        </div>
+        <?php endif; ?>
+        <?php if($iv['address']): ?><div class="small mb-1"><i class="bi bi-geo-alt me-2 text-muted"></i><?=htmlspecialchars($iv['address'])?></div><?php endif; ?>
+        <?php if($iv['meeting_link']): ?>
+        <div class="small"><i class="bi bi-camera-video me-2 text-muted"></i>
+          <a href="<?=htmlspecialchars($iv['meeting_link'])?>" target="_blank" class="btn btn-sm" style="background:rgba(74,138,150,.15);color:#3a8a96;padding:2px 10px;border-radius:5px">
+            <i class="bi bi-camera-video me-1"></i>Tham gia cuộc họp
+          </a>
+        </div>
+        <?php endif; ?>
+      </div>
+
+      <div class="d-flex justify-content-between align-items-center">
+        <span class="badge" style="background:<?=$rb?>;color:<?=$rc?>;padding:5px 12px"><?=$rl?></span>
+        <a href="<?=BASE_PATH?>/modules/messages/chat.php?<?=http_build_query($chat_params)?>" class="btn btn-primary btn-sm">
+          <i class="bi bi-chat-dots me-1"></i>Nhắn tin
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
+<?php endforeach; ?>
+</div>
+<?php endif; ?>
 <?php include '../../includes/footer.php'; ?>
