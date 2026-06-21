@@ -2,71 +2,111 @@
 session_start();
 require_once '../../config/database.php';
 require_once '../../includes/functions.php';
-requireRole('company');
-requireProfileComplete($conn);
 
-$uid=$_SESSION['user_id'];
-$cq=$conn->prepare("SELECT company_id FROM company_profiles WHERE user_id=?");
-$cq->bind_param('i',$uid); $cq->execute();
-$cid=$cq->get_result()->fetch_assoc()['company_id']??0;
-if(!$cid){ setFlash('error','Không tìm thấy hồ sơ doanh nghiệp.'); redirect('../profile/company_profile.php'); }
+$errors = [];
 
-$errors=[];
-if($_SERVER['REQUEST_METHOD']==='POST'){
-    $title      =sanitize($_POST['title']??'');
-    $desc       =sanitize($_POST['description']??'');
-    $req        =sanitize($_POST['requirements']??'');
-    $qty        =(int)($_POST['quantity']??1);
-    $loc        =sanitize($_POST['location']??'');
-    $start      =sanitize($_POST['start_date']??'');
-    $end        =sanitize($_POST['end_date']??'');
-    if(empty($title))  $errors[]='Tiêu đề là bắt buộc.';
-    if($qty<1)         $errors[]='Số lượng >= 1.';
-    if(empty($errors)){
-        $ins=$conn->prepare("INSERT INTO internships (company_id,title,description,requirements,quantity,location,start_date,end_date,status) VALUES (?,?,?,?,?,?,?,?,'open')");
-        $sd=!empty($start)?$start:null; $ed=!empty($end)?$end:null;
-        $ins->bind_param('isssssss',$cid,$title,$desc,$req,$qty,$loc,$sd,$ed);
-        if($ins->execute()){ setFlash('success','✅ Đã đăng vị trí thực tập!'); redirect('my_jobs.php'); }
-        else $errors[]='Lỗi: '.$conn->error;
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $registration_id = (int)($_POST['registration_id'] ?? 0);
+    $week_number     = (int)($_POST['week_number'] ?? 0);
+    $content         = sanitize($_POST['content'] ?? '');
+    $tasks_done      = sanitize($_POST['tasks_done'] ?? '');
+    $issues          = sanitize($_POST['issues'] ?? '');
+
+    if ($registration_id <= 0) $errors[] = 'Vui lòng chọn đăng ký thực tập.';
+    if ($week_number < 1)      $errors[] = 'Số tuần phải >= 1.';
+    if (empty($content))       $errors[] = 'Nội dung nhật ký không được để trống.';
+
+    // BUSINESS RULE: One journal per week per registration
+    if (empty($errors)) {
+        $chk = $conn->prepare(
+            "SELECT journal_id FROM weekly_journals WHERE registration_id=? AND week_number=?"
+        );
+        $chk->bind_param('ii', $registration_id, $week_number);
+        $chk->execute();
+        if ($chk->get_result()->num_rows > 0) {
+            $errors[] = "Nhật ký tuần $week_number cho đăng ký này đã tồn tại.";
+        }
+    }
+
+    if (empty($errors)) {
+        $stmt = $conn->prepare(
+            "INSERT INTO weekly_journals (registration_id, week_number, content, tasks_done, issues)
+             VALUES (?, ?, ?, ?, ?)"
+        );
+        $stmt->bind_param('iisss', $registration_id, $week_number, $content, $tasks_done, $issues);
+        if ($stmt->execute()) {
+            setFlash('success', 'Đã thêm nhật ký tuần ' . $week_number . ' thành công.');
+            redirect('list.php');
+        } else {
+            $errors[] = 'Lỗi: ' . $conn->error;
+        }
     }
 }
+
+$registrations = $conn->query(
+    "SELECT r.registration_id, u.full_name, u.student_code, p.title, c.company_name
+     FROM internship_registrations r
+     JOIN users u ON r.student_id = u.user_id
+     JOIN internship_positions p ON r.position_id = p.position_id
+     JOIN companies c ON p.company_id = c.company_id
+     WHERE r.status = 'approved'
+     ORDER BY u.full_name"
+)->fetch_all(MYSQLI_ASSOC);
 ?>
 <?php include '../../includes/header.php'; ?>
-<div class="ph fu">
-  <div><h4><i class="bi bi-plus-circle me-2"></i>Đăng Vị trí Thực tập</h4></div>
-  <a href="my_jobs.php" class="btn btn-secondary"><i class="bi bi-arrow-left me-1"></i>Quay lại</a>
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h4><i class="bi bi-journal-plus me-2 text-primary"></i>Thêm Nhật ký Tuần</h4>
+    <a href="list.php" class="btn btn-secondary btn-sm"><i class="bi bi-arrow-left me-1"></i>Quay lại</a>
 </div>
-<?php if(!empty($errors)): ?><div class="alert alert-danger fu"><ul class="mb-0"><?php foreach($errors as $e):?><li><?=htmlspecialchars($e)?></li><?php endforeach;?></ul></div><?php endif; ?>
-<div class="row g-4">
-  <div class="col-lg-8">
-    <div class="card fu1"><div class="card-body">
-      <form method="POST"><div class="row g-3">
-        <div class="col-12"><label class="form-label">Tiêu đề vị trí *</label><input type="text" name="title" class="form-control" value="<?=htmlspecialchars($_POST['title']??'')?>" required placeholder="VD: Backend Intern, Marketing Intern..."></div>
-        <div class="col-12"><label class="form-label">Mô tả công việc</label><textarea name="description" class="form-control" rows="5" placeholder="Mô tả chi tiết công việc, nhiệm vụ hàng ngày..."><?=htmlspecialchars($_POST['description']??'')?></textarea></div>
-        <div class="col-12"><label class="form-label">Yêu cầu ứng viên</label><textarea name="requirements" class="form-control" rows="3" placeholder="GPA tối thiểu, kỹ năng cần có, kinh nghiệm..."><?=htmlspecialchars($_POST['requirements']??'')?></textarea></div>
-        <div class="col-md-4"><label class="form-label">Số lượng tuyển *</label><input type="number" name="quantity" class="form-control" min="1" value="<?=htmlspecialchars($_POST['quantity']??'1')?>" required></div>
-        <div class="col-md-8"><label class="form-label">Địa điểm làm việc</label><input type="text" name="location" class="form-control" value="<?=htmlspecialchars($_POST['location']??'')?>" placeholder="Hà Nội, TP.HCM..."></div>
-        <div class="col-md-6"><label class="form-label">Ngày bắt đầu</label><input type="date" name="start_date" class="form-control" value="<?=htmlspecialchars($_POST['start_date']??'')?>"></div>
-        <div class="col-md-6"><label class="form-label">Ngày kết thúc</label><input type="date" name="end_date" class="form-control" value="<?=htmlspecialchars($_POST['end_date']??'')?>"></div>
-      </div>
-      <hr>
-      <button type="submit" class="btn btn-primary"><i class="bi bi-send me-1"></i>Đăng vị trí</button>
-      <a href="my_jobs.php" class="btn btn-secondary ms-2">Hủy</a>
-      </form>
-    </div></div>
-  </div>
-  <div class="col-lg-4">
-    <div class="card fu2" style="background:rgba(234,231,214,.3)"><div class="card-body">
-      <h6 class="fw7 mb-2" style="color:var(--ds)"><i class="bi bi-info-circle me-2"></i>Quy trình tuyển dụng</h6>
-      <ol class="small text-muted ps-3">
-        <li class="mb-1">Bạn đăng vị trí → hiển thị cho sinh viên</li>
-        <li class="mb-1">Sinh viên nộp đơn + CV</li>
-        <li class="mb-1">Trường xét duyệt, chọn job phù hợp</li>
-        <li class="mb-1">Bạn xem hồ sơ và quyết định nhận/từ chối</li>
-        <li class="mb-1">Nhắn tin hẹn lịch phỏng vấn</li>
-        <li>Sinh viên đậu → bắt đầu thực tập</li>
-      </ol>
-    </div></div>
-  </div>
+
+<?php if ($errors): ?>
+<div class="alert alert-danger">
+    <ul class="mb-0"><?php foreach ($errors as $e): ?><li><?= $e ?></li><?php endforeach; ?></ul>
 </div>
+<?php endif; ?>
+
+<div class="card">
+    <div class="card-body">
+        <form method="POST">
+            <div class="row g-3">
+                <div class="col-md-8">
+                    <label class="form-label fw-semibold">Đăng ký thực tập <span class="text-danger">*</span></label>
+                    <select name="registration_id" class="form-select" required>
+                        <option value="">-- Chọn sinh viên / vị trí --</option>
+                        <?php foreach ($registrations as $r): ?>
+                        <option value="<?= $r['registration_id'] ?>"
+                            <?= ($_POST['registration_id']??'')==$r['registration_id'] ?'selected':'' ?>>
+                            <?= htmlspecialchars($r['full_name']) ?>
+                            <?= $r['student_code'] ? '(' . $r['student_code'] . ')' : '' ?>
+                            — <?= htmlspecialchars($r['title']) ?> @ <?= htmlspecialchars($r['company_name']) ?>
+                        </option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label fw-semibold">Số tuần <span class="text-danger">*</span></label>
+                    <input type="number" name="week_number" class="form-control" min="1"
+                           value="<?= (int)($_POST['week_number'] ?? 1) ?>" required>
+                </div>
+                <div class="col-12">
+                    <label class="form-label fw-semibold">Nội dung công việc tuần này <span class="text-danger">*</span></label>
+                    <textarea name="content" class="form-control" rows="4" required><?= htmlspecialchars($_POST['content'] ?? '') ?></textarea>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label fw-semibold">Công việc đã hoàn thành</label>
+                    <textarea name="tasks_done" class="form-control" rows="3"><?= htmlspecialchars($_POST['tasks_done'] ?? '') ?></textarea>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label fw-semibold">Vấn đề gặp phải</label>
+                    <textarea name="issues" class="form-control" rows="3"><?= htmlspecialchars($_POST['issues'] ?? '') ?></textarea>
+                </div>
+            </div>
+            <hr>
+            <button type="submit" class="btn btn-primary"><i class="bi bi-save me-1"></i>Lưu nhật ký</button>
+            <a href="list.php" class="btn btn-secondary ms-2">Hủy</a>
+        </form>
+    </div>
+</div>
+
 <?php include '../../includes/footer.php'; ?>
