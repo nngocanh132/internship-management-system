@@ -160,3 +160,4 @@ $logoUrl=$p['logo']?UPLOAD_URL.'/'.$p['logo']:'https://ui-avatars.com/api/?name=
 </form>
 <script>function prevImg(i,id){if(i.files[0]){const r=new FileReader();r.onload=e=>document.getElementById(id).src=e.target.result;r.readAsDataURL(i.files[0]);}}</script>
 <?php include '../../includes/footer.php'; ?>
+<?php include '../../includes/footer.php'; ?>
