@@ -2,54 +2,165 @@
 session_start();
 require_once '../../config/database.php';
 require_once '../../includes/functions.php';
-requireRole('admin');
 
-$companies = safeQuery($conn, "SELECT cp.*,u.email,u.is_profile_completed,u.created_at,
-  (SELECT COUNT(*) FROM internships WHERE company_id=cp.company_id) AS job_count,
-  (SELECT COUNT(*) FROM applications a JOIN internships i ON a.internship_id=i.internship_id WHERE i.company_id=cp.company_id) AS app_count
-  FROM company_profiles cp JOIN users u ON cp.user_id=u.user_id
-  ORDER BY cp.company_name");
+// ---- Handle DELETE ----
+if (isset($_GET['delete'])) {
+    $id = (int)$_GET['delete'];
+
+    // BUSINESS RULE: Cannot delete company that has internship positions
+    $check = $conn->prepare("SELECT COUNT(*) AS cnt FROM internship_positions WHERE company_id = ?");
+    $check->bind_param('i', $id);
+    $check->execute();
+    $row = $check->get_result()->fetch_assoc();
+
+    if ($row['cnt'] > 0) {
+        setFlash('error', 'Không thể xóa: Doanh nghiệp đang có vị trí thực tập liên kết.');
+    } else {
+        $stmt = $conn->prepare("DELETE FROM companies WHERE company_id = ?");
+        $stmt->bind_param('i', $id);
+        $stmt->execute();
+        setFlash('success', 'Đã xóa doanh nghiệp thành công.');
+    }
+    redirect('list.php');
+}
+
+$search = isset($_GET['search']) ? sanitize($_GET['search']) : '';
+
+$sql = "SELECT c.*, COUNT(p.position_id) AS total_positions
+        FROM companies c
+        LEFT JOIN internship_positions p ON c.company_id = p.company_id
+        WHERE 1=1";
+$params = []; $types = '';
+
+if ($search !== '') {
+    $sql .= " AND (c.name LIKE ? OR c.location LIKE ? OR c.contact_email LIKE ?)";
+    $like = "%$search%";
+    $params = [$like, $like, $like];
+    $types = 'sss';
+}
+$sql .= " GROUP BY c.company_id ORDER BY c.company_id DESC";
+
+$stmt = $conn->prepare($sql);
+if ($params) $stmt->bind_param($types, ...$params);
+$stmt->execute();
+$companies = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
 ?>
 <?php include '../../includes/header.php'; ?>
-<div class="ph fu">
-  <div><h4><i class="bi bi-building-fill me-2"></i>Doanh nghiệp</h4><div class="ph-sub">Tổng: <?=count($companies)?></div></div>
-</div>
-<?php showFlash(); ?>
-<?php if(empty($companies)): ?>
-<div class="card text-center py-5 fu1"><div class="card-body">
-  <i class="bi bi-building" style="font-size:3rem;color:var(--tl)"></i>
-  <h5 class="mt-3 fw7">Chưa có doanh nghiệp nào đăng ký</h5>
-</div></div>
-<?php else: ?>
-<div class="row g-3 fu1">
-<?php foreach($companies as $i=>$c):
-  $logo = $c['logo'] ? UPLOAD_URL.'/'.$c['logo'] : 'https://ui-avatars.com/api/?name='.urlencode($c['company_name']).'&background=5D7B6F&color=fff&size=80&bold=true';
-?>
-<div class="col-md-6 col-lg-4" style="animation:fadeUp .32s <?=$i*.04?>s ease both">
-  <div class="card h-100" style="border:1.5px solid rgba(164,195,162,.2)">
-    <div class="card-body">
-      <div class="d-flex align-items-center gap-3 mb-3">
-        <img src="<?=$logo?>" style="width:48px;height:48px;border-radius:12px;object-fit:cover;flex-shrink:0">
-        <div>
-          <div class="fw7"><?=htmlspecialchars($c['company_name'])?></div>
-          <div class="small text-muted"><?=htmlspecialchars($c['industry']??'—')?></div>
-        </div>
-      </div>
-      <?php if($c['address']): ?><div class="small mb-1"><i class="bi bi-geo-alt me-2 text-muted"></i><?=htmlspecialchars($c['address'])?></div><?php endif; ?>
-      <?php if($c['website']): ?><div class="small mb-1"><i class="bi bi-globe me-2 text-muted"></i><a href="<?=htmlspecialchars($c['website'])?>" target="_blank"><?=htmlspecialchars($c['website'])?></a></div><?php endif; ?>
-      <div class="small mb-1"><i class="bi bi-envelope me-2 text-muted"></i><?=htmlspecialchars($c['email'])?></div>
-      <div class="d-flex gap-2 mt-2 flex-wrap">
-        <span class="badge bg-primary"><?=$c['job_count']?> vị trí</span>
-        <span class="badge bg-secondary"><?=$c['app_count']?> đơn</span>
-        <span class="badge ms-auto" style="<?=$c['is_profile_completed']?'background:rgba(74,158,106,.12);color:#2d6a40':'background:rgba(196,154,108,.12);color:#a07040'?>"><?=$c['is_profile_completed']?'✅ Hồ sơ đầy đủ':'⚠️ Chưa hoàn thiện'?></span>
-      </div>
-      <?php if($c['business_license_file']): ?>
-      <div class="mt-2"><a href="<?=UPLOAD_URL.'/'.$c['business_license_file']?>" target="_blank" class="btn btn-secondary btn-sm w-100"><i class="bi bi-file-earmark-pdf me-1"></i>Xem Giấy phép KD</a></div>
-      <?php endif; ?>
+
+<div class="page-header">
+    <div>
+        <h4><i class="bi bi-building-fill me-2" style="color:#10b981"></i>Quản lý Doanh nghiệp</h4>
+        <div class="page-subtitle">Tổng: <?= count($companies) ?> doanh nghiệp đối tác</div>
     </div>
-  </div>
+    <a href="add.php" class="btn btn-primary btn-sm">
+        <i class="bi bi-plus-lg me-1"></i>Thêm doanh nghiệp
+    </a>
 </div>
-<?php endforeach; ?>
+
+<?php showFlash(); ?>
+
+<div class="card mb-4" style="border-radius:12px;">
+    <div class="card-body py-3">
+        <form method="GET" class="row g-2 align-items-end">
+            <div class="col-md-7">
+                <label class="form-label mb-1">Tìm kiếm</label>
+                <div class="input-group">
+                    <span class="input-group-text" style="background:#f8fafc;border-color:#e2e8f0;border-radius:8px 0 0 8px;">
+                        <i class="bi bi-search text-muted"></i>
+                    </span>
+                    <input type="text" name="search" class="form-control"
+                           style="border-left:none;border-radius:0 8px 8px 0;"
+                           placeholder="Tên, ngành, email..." value="<?= htmlspecialchars($search) ?>">
+                </div>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label mb-1 d-block">&nbsp;</label>
+                <button type="submit" class="btn btn-primary w-100"><i class="bi bi-search me-1"></i>Tìm</button>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label mb-1 d-block">&nbsp;</label>
+                <a href="list.php" class="btn w-100" style="background:#f1f5f9;color:#64748b;border:none;">
+                    <i class="bi bi-x-lg me-1"></i>Xóa lọc
+                </a>
+            </div>
+        </form>
+    </div>
 </div>
-<?php endif; ?>
+
+<div class="card table-card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-table me-2"></i>Danh sách doanh nghiệp</span>
+        <span class="badge" style="background:#dcfce7;color:#166534;font-size:.78rem;"><?= count($companies) ?> kết quả</span>
+    </div>
+    <div class="card-body p-0">
+        <table class="table mb-0">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Doanh nghiệp</th>
+                    <th>Ngành</th>
+                    <th>Email liên hệ</th>
+                    <th>Điện thoại</th>
+                    <th>Vị trí</th>
+                    <th>Trạng thái</th>
+                    <th style="width:100px">Thao tác</th>
+                </tr>
+            </thead>
+            <tbody>
+            <?php if (empty($companies)): ?>
+                <tr><td colspan="8" class="text-center py-5">
+                    <i class="bi bi-inbox fs-1 d-block mb-2 text-muted opacity-25"></i>
+                    <span class="text-muted">Không có dữ liệu</span>
+                </td></tr>
+            <?php else: ?>
+                <?php foreach ($companies as $i => $c):
+                    $colors = ['#6366f1','#10b981','#f59e0b','#ef4444','#8b5cf6'];
+                    $color  = $colors[$i % count($colors)];
+                    $initials = strtoupper(mb_substr($c['name'], 0, 2));
+                ?>
+                <tr>
+                    <td style="color:#94a3b8;font-size:.8rem"><?= $i + 1 ?></td>
+                    <td>
+                        <div class="d-flex align-items-center gap-2">
+                            <div class="avatar-sm" style="background:<?= $color ?>20;color:<?= $color ?>;font-size:.7rem;">
+                                <?= $initials ?>
+                            </div>
+                            <strong><?= htmlspecialchars($c['name']) ?></strong>
+                        </div>
+                    </td>
+                    <td style="color:#64748b;font-size:.82rem"><?= htmlspecialchars($c['location'] ?? '—') ?></td>
+                    <td style="color:#64748b;font-size:.82rem"><?= htmlspecialchars($c['contact_email'] ?? '—') ?></td>
+                    <td style="color:#64748b;font-size:.82rem"><?= htmlspecialchars($c['phone'] ?? '—') ?></td>
+                    <td>
+                        <span class="badge" style="background:#eff6ff;color:#1d4ed8;"><?= $c['total_positions'] ?> vị trí</span>
+                    </td>
+                    <td>
+                        <?php if ($c['status'] === 'active'): ?>
+                        <span class="badge" style="background:#dcfce7;color:#166534;">
+                            <i class="bi bi-circle-fill me-1" style="font-size:.5rem"></i>Hoạt động
+                        </span>
+                        <?php else: ?>
+                        <span class="badge" style="background:#f1f5f9;color:#64748b;">Vô hiệu</span>
+                        <?php endif; ?>
+                    </td>
+                    <td>
+                        <div class="d-flex gap-1">
+                            <a href="edit.php?id=<?= $c['company_id'] ?>" class="btn btn-warning btn-sm">
+                                <i class="bi bi-pencil-fill"></i>
+                            </a>
+                            <a href="list.php?delete=<?= $c['company_id'] ?>"
+                               class="btn btn-danger btn-sm"
+                               onclick="return confirm('Xác nhận xóa doanh nghiệp này?')">
+                                <i class="bi bi-trash-fill"></i>
+                            </a>
+                        </div>
+                    </td>
+                </tr>
+                <?php endforeach; ?>
+            <?php endif; ?>
+            </tbody>
+        </table>
+    </div>
+</div>
+
 <?php include '../../includes/footer.php'; ?>
