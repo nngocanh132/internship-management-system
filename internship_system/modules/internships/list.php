@@ -2,48 +2,114 @@
 session_start();
 require_once '../../config/database.php';
 require_once '../../includes/functions.php';
-requireRole('admin');
 
-$search=sanitize($_GET['q']??''); $status_f=sanitize($_GET['status']??'');
-$sql="SELECT i.*,cp.company_name,(SELECT COUNT(*) FROM applications WHERE internship_id=i.internship_id) AS app_count FROM internships i JOIN company_profiles cp ON i.company_id=cp.company_id WHERE 1=1";
-$p=[]; $t='';
-if($search){$sql.=" AND (i.title LIKE ? OR cp.company_name LIKE ?)";$like="%$search%";$p[]=$like;$p[]=$like;$t='ss';}
-if($status_f){$sql.=" AND i.status=?";$p[]=$status_f;$t.='s';}
-$sql.=" ORDER BY i.created_at DESC";
-$st=$conn->prepare($sql); if($p) $st->bind_param($t,...$p); $st->execute();
-$jobs=$st->get_result()->fetch_all(MYSQLI_ASSOC);
+if (isset($_GET['delete'])) {
+    $id = (int)$_GET['delete'];
+    $stmt = $conn->prepare("DELETE FROM weekly_journals WHERE journal_id=?");
+    $stmt->bind_param('i', $id);
+    $stmt->execute();
+    setFlash('success', 'Đã xóa nhật ký.');
+    redirect('list.php');
+}
+
+$sql = "SELECT j.*, u.full_name AS student_name, u.student_code,
+               p.title AS position_title, c.name AS company_name
+        FROM weekly_journals j
+        JOIN internship_assignments ia ON j.assignment_id = ia.assignment_id
+        JOIN internship_registrations r ON ia.registration_id = r.registration_id
+        JOIN users u ON r.student_id = u.user_id
+        JOIN internship_positions p ON r.position_id = p.position_id
+        JOIN companies c ON p.company_id = c.company_id
+        ORDER BY j.submitted_at DESC";
+
+$journals = $conn->query($sql)->fetch_all(MYSQLI_ASSOC);
+
+// Compliance check: students with no journal in last 7 days
+$at_risk = $conn->query(
+    "SELECT u.full_name, u.student_code, r.registration_id,
+            MAX(j.submitted_at) AS last_submission
+     FROM internship_registrations r
+     JOIN users u ON r.student_id = u.user_id
+     LEFT JOIN internship_assignments ia ON ia.registration_id = r.registration_id
+     LEFT JOIN weekly_journals j ON j.assignment_id = ia.assignment_id
+     WHERE r.status = 'approved'
+     GROUP BY r.registration_id
+     HAVING last_submission IS NULL OR last_submission < DATE_SUB(NOW(), INTERVAL 7 DAY)"
+)->fetch_all(MYSQLI_ASSOC);
 ?>
 <?php include '../../includes/header.php'; ?>
-<div class="ph fu"><div><h4><i class="bi bi-briefcase-fill me-2"></i>Vị trí Thực tập</h4><div class="ph-sub">Tổng: <?=count($jobs)?></div></div></div>
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h4><i class="bi bi-journal-text me-2 text-primary"></i>Nhật ký Thực tập Hàng tuần</h4>
+    <a href="add.php" class="btn btn-primary btn-sm"><i class="bi bi-plus-circle me-1"></i>Thêm nhật ký</a>
+</div>
+
 <?php showFlash(); ?>
-<div class="card mb-3 fu1"><div class="card-body py-2">
-  <form method="GET" class="d-flex gap-2">
-    <input type="text" name="q" class="form-control" placeholder="Tìm tiêu đề, công ty..." value="<?=htmlspecialchars($search)?>">
-    <select name="status" class="form-select" style="width:160px;flex-shrink:0">
-      <option value="">Tất cả</option><option value="open" <?=$status_f==='open'?'selected':''?>>Đang mở</option><option value="closed" <?=$status_f==='closed'?'selected':''?>>Đã đóng</option>
-    </select>
-    <button type="submit" class="btn btn-primary px-4">Tìm</button>
-    <?php if($search||$status_f): ?><a href="list.php" class="btn btn-secondary">Xóa</a><?php endif; ?>
-  </form>
-</div></div>
-<div class="card tc fu2"><div class="card-body p-0">
-  <table class="table mb-0">
-    <thead><tr><th>#</th><th>Vị trí</th><th>Doanh nghiệp</th><th>Địa điểm</th><th class="text-center">SL</th><th class="text-center">Đơn</th><th>Trạng thái</th><th>Thao tác</th></tr></thead>
-    <tbody>
-    <?php if(empty($jobs)): ?><tr><td colspan="8" class="text-center py-5 text-muted">Không có dữ liệu</td></tr>
-    <?php else: foreach($jobs as $i=>$j): ?>
-    <tr>
-      <td class="text-muted small"><?=$i+1?></td>
-      <td><div class="fw7 small"><?=htmlspecialchars($j['title'])?></div><?php if($j['start_date']): ?><div class="small text-muted"><?=date('d/m/Y',strtotime($j['start_date']))?></div><?php endif; ?></td>
-      <td class="small"><?=htmlspecialchars($j['company_name'])?></td>
-      <td class="small text-muted"><?=htmlspecialchars($j['location']??'—')?></td>
-      <td class="text-center fw7"><?=$j['quantity']?></td>
-      <td class="text-center"><a href="../applications/list.php?internship_id=<?=$j['internship_id']?>" class="badge bg-primary" style="text-decoration:none"><?=$j['app_count']?></a></td>
-      <td><span class="badge" style="<?=$j['status']==='open'?'background:rgba(74,158,106,.12);color:#2d6a40':'background:rgba(160,160,160,.12);color:#5a5a5a'?>"><?=$j['status']==='open'?'Đang mở':'Đóng'?></span></td>
-      <td><a href="edit.php?id=<?=$j['internship_id']?>" class="btn btn-warning btn-sm"><i class="bi bi-pencil"></i></a></td>
-    </tr>
-    <?php endforeach; endif; ?>
-    </tbody>
-  </table>
-</div></div>
+
+<?php if (!empty($at_risk)): ?>
+<div class="alert alert-warning">
+    <strong><i class="bi bi-exclamation-triangle me-1"></i>Cảnh báo Compliance:</strong>
+    Các sinh viên sau chưa nộp nhật ký trong 7 ngày qua:
+    <ul class="mb-0 mt-1">
+        <?php foreach ($at_risk as $ar): ?>
+        <li>
+            <?= htmlspecialchars($ar['full_name']) ?>
+            <?= $ar['student_code'] ? '(' . $ar['student_code'] . ')' : '' ?>
+            — Lần cuối: <?= $ar['last_submission'] ?? 'Chưa nộp lần nào' ?>
+        </li>
+        <?php endforeach; ?>
+    </ul>
+</div>
+<?php endif; ?>
+
+<div class="card">
+    <div class="card-body p-0">
+        <table class="table table-hover table-bordered mb-0">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Sinh viên</th>
+                    <th>Vị trí / Doanh nghiệp</th>
+                    <th>Tuần</th>
+                    <th>Nội dung</th>
+                    <th>Ngày nộp</th>
+                    <th>Thao tác</th>
+                </tr>
+            </thead>
+            <tbody>
+            <?php if (empty($journals)): ?>
+                <tr><td colspan="7" class="text-center text-muted py-4">Chưa có nhật ký nào</td></tr>
+            <?php else: ?>
+                <?php foreach ($journals as $i => $j): ?>
+                <tr>
+                    <td><?= $i + 1 ?></td>
+                    <td>
+                        <?= htmlspecialchars($j['student_name']) ?>
+                        <?= $j['student_code'] ? '<br><small class="text-muted">' . $j['student_code'] . '</small>' : '' ?>
+                    </td>
+                    <td>
+                        <?= htmlspecialchars($j['position_title']) ?>
+                        <br><small class="text-muted"><?= htmlspecialchars($j['company_name']) ?></small>
+                    </td>
+                    <td class="text-center"><span class="badge bg-primary">Tuần <?= $j['week_number'] ?></span></td>
+                    <td><?= htmlspecialchars(mb_substr($j['content'], 0, 80)) ?>...</td>
+                    <td><small><?= $j['submitted_at'] ?></small></td>
+                    <td>
+                        <a href="edit.php?id=<?= $j['journal_id'] ?>" class="btn btn-warning btn-sm">
+                            <i class="bi bi-pencil"></i>
+                        </a>
+                        <a href="list.php?delete=<?= $j['journal_id'] ?>"
+                           class="btn btn-danger btn-sm"
+                           onclick="return confirm('Xóa nhật ký này?')">
+                            <i class="bi bi-trash"></i>
+                        </a>
+                    </td>
+                </tr>
+                <?php endforeach; ?>
+            <?php endif; ?>
+            </tbody>
+        </table>
+    </div>
+</div>
+
 <?php include '../../includes/footer.php'; ?>
