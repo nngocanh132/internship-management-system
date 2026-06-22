@@ -2,83 +2,53 @@
 session_start();
 require_once '../../config/database.php';
 require_once '../../includes/functions.php';
-requireRole(['admin','lecturer']);
+requireRole('admin');
 
-if (isset($_GET['delete'])) {
-    $psid=(int)$_GET['delete'];
-    $s=$conn->prepare("DELETE FROM position_skills WHERE position_skill_id=?");
-    $s->bind_param('i',$psid); $s->execute();
-    setFlash('success','Đã gỡ kỹ năng khỏi vị trí.');
-    redirect('list.php'.(isset($_GET['position_id'])?'?position_id='.(int)$_GET['position_id']:''));
-}
-
-$filter_pos=isset($_GET['position_id'])?(int)$_GET['position_id']:0;
-$positions_all=$conn->query("SELECT position_id,title FROM internship_positions ORDER BY title")->fetch_all(MYSQLI_ASSOC);
-
-$sql="SELECT ps.position_skill_id, p.position_id, p.title AS position_title,
-             s.skill_id, s.skill_name, c.name AS company_name
-      FROM position_skills ps
-      JOIN internship_positions p ON ps.position_id=p.position_id
-      JOIN skills s ON ps.skill_id=s.skill_id
-      JOIN companies c ON p.company_id=c.company_id WHERE 1=1";
-$params=[]; $types='';
-if ($filter_pos>0) { $sql.=" AND ps.position_id=?"; $params[]=$filter_pos; $types.='i'; }
-$sql.=" ORDER BY p.title,s.skill_name";
-$stmt=$conn->prepare($sql);
-if ($params) $stmt->bind_param($types,...$params);
-$stmt->execute();
-$rows=$stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+$lecturers=$conn->query("SELECT lp.*,u.email,u.created_at,
+  (SELECT COUNT(*) FROM internship_registrations WHERE lecturer_id=lp.lecturer_id AND status='active') AS active_students,
+  (SELECT COUNT(*) FROM internship_registrations WHERE lecturer_id=lp.lecturer_id) AS total_students
+  FROM lecturer_profiles lp JOIN users u ON lp.user_id=u.user_id
+  ORDER BY lp.full_name")->fetch_all(MYSQLI_ASSOC);
 ?>
 <?php include '../../includes/header.php'; ?>
-<div class="page-header">
-    <div>
-        <h4><i class="bi bi-tags-fill me-2" style="color:#34d399"></i>Kỹ năng theo Vị trí Thực tập</h4>
-        <div class="page-subtitle">Tổng: <?= count($rows) ?> liên kết</div>
-    </div>
-    <a href="add.php" class="btn btn-primary btn-sm"><i class="bi bi-plus-lg me-1"></i>Gán kỹ năng</a>
+<div class="ph fu">
+  <div><h4><i class="bi bi-person-workspace me-2"></i>Giảng viên</h4><div class="ph-sub">Tổng: <?=count($lecturers)?></div></div>
+  <a href="<?=BASE_PATH?>/modules/users/create_lecturer.php" class="btn btn-primary"><i class="bi bi-person-plus me-1"></i>Thêm giảng viên</a>
 </div>
 <?php showFlash(); ?>
-<div class="card mb-4"><div class="card-body py-3">
-    <form method="GET" class="row g-2 align-items-end">
-        <div class="col-md-7">
-            <label class="form-label mb-1">Lọc theo vị trí</label>
-            <select name="position_id" class="form-select">
-                <option value="0">— Tất cả vị trí —</option>
-                <?php foreach ($positions_all as $p): ?>
-                <option value="<?= $p['position_id'] ?>" <?= $filter_pos===$p['position_id']?'selected':'' ?>><?= htmlspecialchars($p['title']) ?></option>
-                <?php endforeach; ?>
-            </select>
-        </div>
-        <div class="col-md-2"><label class="form-label mb-1 d-block">&nbsp;</label>
-            <button type="submit" class="btn btn-primary w-100"><i class="bi bi-funnel me-1"></i>Lọc</button></div>
-        <div class="col-md-2"><label class="form-label mb-1 d-block">&nbsp;</label>
-            <a href="list.php" class="btn btn-secondary w-100"><i class="bi bi-x-lg me-1"></i>Xóa lọc</a></div>
-    </form>
+
+<?php if(empty($lecturers)): ?>
+<div class="card text-center py-5 fu1"><div class="card-body">
+  <i class="bi bi-person-workspace" style="font-size:3rem;color:var(--tl)"></i>
+  <h5 class="mt-3 fw7">Chưa có giảng viên</h5>
+  <p class="text-muted">Admin tạo tài khoản giảng viên để phân công hướng dẫn sinh viên.</p>
+  <a href="<?=BASE_PATH?>/modules/users/create_lecturer.php" class="btn btn-primary">Thêm giảng viên</a>
 </div></div>
-<div class="card table-card">
-    <div class="card-header d-flex justify-content-between align-items-center">
-        <span><i class="bi bi-table me-2"></i>Danh sách Kỹ năng – Vị trí</span>
-        <span class="badge" style="background:#d1fae5;color:#065f46"><?= count($rows) ?> kết quả</span>
+<?php else: ?>
+<div class="row g-3 fu1">
+<?php foreach($lecturers as $i=>$l): ?>
+<div class="col-md-6 col-lg-4" style="animation:fadeUp .32s <?=$i*.04?>s ease both">
+  <div class="card h-100" style="border:1.5px solid rgba(164,195,162,.2)">
+    <div class="card-body">
+      <div class="d-flex align-items-center gap-3 mb-3">
+        <div class="av" style="width:46px;height:46px;font-size:1rem;background:linear-gradient(135deg,#4ab8c4,#2a95a2)">
+          <?=strtoupper(mb_substr($l['full_name'],0,1))?>
+        </div>
+        <div>
+          <div class="fw7"><?=htmlspecialchars($l['full_name'])?></div>
+          <div class="small text-muted"><?=htmlspecialchars($l['department']??'—')?></div>
+        </div>
+      </div>
+      <div class="small mb-1"><i class="bi bi-envelope me-2 text-muted"></i><?=htmlspecialchars($l['email']??$l['email'])?></div>
+      <?php if($l['phone']): ?><div class="small mb-1"><i class="bi bi-phone me-2 text-muted"></i><?=htmlspecialchars($l['phone'])?></div><?php endif; ?>
+      <div class="d-flex gap-2 mt-2">
+        <span class="badge" style="background:rgba(74,158,106,.12);color:#2d6a40"><?=$l['active_students']?> đang TT</span>
+        <span class="badge bg-secondary"><?=$l['total_students']?> tổng cộng</span>
+      </div>
     </div>
-    <div class="card-body p-0">
-        <table class="table mb-0">
-            <thead><tr><th>#</th><th>Vị trí thực tập</th><th>Doanh nghiệp</th><th>Kỹ năng</th><th style="width:80px">Thao tác</th></tr></thead>
-            <tbody>
-            <?php if (empty($rows)): ?>
-                <tr><td colspan="5" class="text-center py-5"><i class="bi bi-inbox fs-1 d-block mb-2 text-muted opacity-25"></i><span class="text-muted">Không có dữ liệu</span></td></tr>
-            <?php else: ?>
-                <?php foreach ($rows as $i=>$r): ?>
-                <tr>
-                    <td style="color:#94a3b8;font-size:.8rem"><?= $i+1 ?></td>
-                    <td class="fw-semibold"><?= htmlspecialchars($r['position_title']) ?></td>
-                    <td style="color:#64748b;font-size:.82rem"><?= htmlspecialchars($r['company_name']) ?></td>
-                    <td><span class="badge" style="background:#fef3c7;color:#92400e"><i class="bi bi-lightning-charge-fill me-1"></i><?= htmlspecialchars($r['skill_name']) ?></span></td>
-                    <td><a href="list.php?delete=<?= $r['position_skill_id'] ?><?= $filter_pos?'&position_id='.$filter_pos:'' ?>" class="btn btn-danger btn-sm" onclick="return confirm('Gỡ kỹ năng này?')"><i class="bi bi-trash-fill"></i></a></td>
-                </tr>
-                <?php endforeach; ?>
-            <?php endif; ?>
-            </tbody>
-        </table>
-    </div>
+  </div>
 </div>
+<?php endforeach; ?>
+</div>
+<?php endif; ?>
 <?php include '../../includes/footer.php'; ?>

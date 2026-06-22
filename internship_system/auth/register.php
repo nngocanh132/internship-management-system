@@ -2,238 +2,274 @@
 session_start();
 require_once '../config/database.php';
 require_once '../includes/functions.php';
-if (isLoggedIn()) redirect(getBaseUrl().'/index.php');
+if(isLoggedIn()) redirect(getDashboardUrl());
+
 $errors=[]; $success=false;
-if ($_SERVER['REQUEST_METHOD']==='POST') {
-    $full_name   =sanitize($_POST['full_name']??'');
-    $email       =sanitize($_POST['email']??'');
-    $password    =$_POST['password']??'';
-    $confirm_pw  =$_POST['confirm_password']??'';
-    $role        =sanitize($_POST['role']??'');
-    $phone       =sanitize($_POST['phone']??'');
-    $student_code=sanitize($_POST['student_code']??'');
-    $major       =sanitize($_POST['major']??'');
-    if (empty($full_name)) $errors[]='Họ tên không được để trống.';
-    if (empty($email)||!filter_var($email,FILTER_VALIDATE_EMAIL)) $errors[]='Email không hợp lệ.';
-    if (strlen($password)<6) $errors[]='Mật khẩu phải có ít nhất 6 ký tự.';
-    if ($password!==$confirm_pw) $errors[]='Mật khẩu xác nhận không khớp.';
-    if (!in_array($role,['student','company','lecturer','admin'])) $errors[]='Vui lòng chọn loại tài khoản.';
-    if (empty($errors)) {
+if($_SERVER['REQUEST_METHOD']==='POST'){
+    $email    = sanitize($_POST['email']??'');
+    $pw       = $_POST['password']??'';
+    $pw2      = $_POST['confirm_password']??'';
+    $role     = sanitize($_POST['role']??'');
+    $fullname = sanitize($_POST['full_name']??'');
+
+    if(empty($email)||!filter_var($email,FILTER_VALIDATE_EMAIL)) $errors[]='Email không hợp lệ.';
+    if(strlen($pw)<6)   $errors[]='Mật khẩu tối thiểu 6 ký tự.';
+    if($pw!==$pw2)      $errors[]='Xác nhận mật khẩu không khớp.';
+    if(!in_array($role,['student','company'])) $errors[]='Vui lòng chọn loại tài khoản.';
+    if(empty($fullname)) $errors[]='Tên không được để trống.';
+
+    if(empty($errors)){
         $chk=$conn->prepare("SELECT user_id FROM users WHERE email=?");
         $chk->bind_param('s',$email); $chk->execute();
-        if ($chk->get_result()->num_rows>0) $errors[]='Email đã được sử dụng.';
+        if($chk->get_result()->num_rows>0) $errors[]='Email đã tồn tại.';
     }
-    if (empty($errors)&&$role==='student'&&!empty($student_code)) {
-        $chk2=$conn->prepare("SELECT user_id FROM users WHERE student_code=?");
-        $chk2->bind_param('s',$student_code); $chk2->execute();
-        if ($chk2->get_result()->num_rows>0) $errors[]='Mã sinh viên đã tồn tại.';
-    }
-    if (empty($errors)) {
-        $hashed=password_hash($password,PASSWORD_DEFAULT);
-        $code=($role==='student'&&!empty($student_code))?$student_code:null;
-        $maj=!empty($major)?$major:null;
-        $ph=!empty($phone)?$phone:null;
-        $stmt=$conn->prepare("INSERT INTO users (full_name,email,password,role,phone,student_code,major,status) VALUES (?,?,?,?,?,?,?,'active')");
-        $stmt->bind_param('sssssss',$full_name,$email,$hashed,$role,$ph,$code,$maj);
-        if ($stmt->execute()) $success=true;
-        else $errors[]='Lỗi: '.$conn->error;
+    if(empty($errors)){
+        $hash=md5($pw);
+        $ins=$conn->prepare("INSERT INTO users (email,password,role,is_profile_completed) VALUES (?,?,?,0)");
+        $ins->bind_param('sss',$email,$hash,$role);
+        if($ins->execute()){
+            $uid=$conn->insert_id;
+            // Tạo profile rỗng
+            if($role==='student'){
+                $p=$conn->prepare("INSERT INTO student_profiles (user_id,full_name) VALUES (?,?)");
+                $p->bind_param('is',$uid,$fullname); $p->execute();
+            } elseif($role==='company'){
+                $p=$conn->prepare("INSERT INTO company_profiles (user_id,company_name) VALUES (?,?)");
+                $p->bind_param('is',$uid,$fullname); $p->execute();
+            }
+            $success=true;
+        } else { $errors[]='Lỗi hệ thống: '.$conn->error; }
     }
 }
 ?>
 <!DOCTYPE html>
 <html lang="vi">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width,initial-scale=1.0">
-    <title>Đăng ký · ISchool</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400;14..32,500;14..32,600;14..32,700;14..32,800&display=swap" rel="stylesheet">
-    <style>
-        :root{
-            --bg:#E8E8DC; --sidebar:#4A6741; --sid-dark:#3a5232;
-            --mint:#A8D5BA; --mint-lt:#D4EDE0; --teal:#7EC8C8; --teal-lt:#C8ECEC;
-            --accent:#5A8A5A; --text:#2C3A2C; --muted:#7A8C7A; --border:rgba(74,103,65,.15);
-        }
-        *,*::before,*::after{box-sizing:border-box;}
-        body{
-            font-family:'Inter',system-ui,sans-serif;
-            background:var(--bg); min-height:100vh;
-            display:flex; align-items:center; justify-content:center;
-            padding:32px 24px; -webkit-font-smoothing:antialiased;
-        }
-        .reg-card{
-            background:#fff; border-radius:24px;
-            box-shadow:0 16px 48px rgba(44,58,44,.12);
-            width:100%; max-width:560px; overflow:hidden;
-        }
-        .reg-header{
-            background:var(--sidebar); padding:32px 40px 24px; color:#fff;
-        }
-        .reg-header .brand{ font-size:1.2rem; font-weight:800; margin-bottom:14px; }
-        .reg-header .brand span{ color:var(--mint); }
-        .reg-header h3{ font-size:1.35rem; font-weight:800; margin:0; }
-        .reg-header p{ font-size:.82rem; opacity:.7; margin:4px 0 0; }
-        .reg-body{ padding:32px 40px 36px; }
-        .form-label{ font-weight:600; font-size:.82rem; color:var(--text); margin-bottom:6px; }
-        .form-control,.form-select{
-            border-radius:12px; border:1.5px solid var(--border);
-            font-size:.875rem; padding:10px 14px;
-            background:#fafafa; font-family:inherit;
-            transition:border-color .2s,box-shadow .2s;
-        }
-        .form-control:focus,.form-select:focus{
-            border-color:var(--accent);
-            box-shadow:0 0 0 3px rgba(90,138,90,.1);
-            background:#fff; outline:none;
-        }
-        .input-group .form-control{ border-radius:12px 0 0 12px; }
-        .btn-eye{
-            border:1.5px solid var(--border); border-left:none;
-            border-radius:0 12px 12px 0; background:#fafafa;
-            color:var(--muted); padding:0 14px; cursor:pointer;
-        }
-        .btn-eye:hover{ background:var(--mint-lt); }
-        .role-grid{ display:grid; grid-template-columns:1fr 1fr; gap:10px; }
-        .role-opt{ position:relative; }
-        .role-opt input{ position:absolute; opacity:0; width:0; height:0; }
-        .role-opt label{
-            display:flex; flex-direction:column; align-items:center; gap:6px;
-            padding:14px 10px; border-radius:14px;
-            border:2px solid var(--border);
-            cursor:pointer; transition:all .15s;
-            background:#fafafa; text-align:center;
-        }
-        .role-opt label i{ font-size:1.4rem; color:var(--muted); transition:color .15s; }
-        .role-opt label span{ font-size:.82rem; font-weight:600; color:var(--text); }
-        .role-opt label small{ font-size:.7rem; color:var(--muted); }
-        .role-opt input:checked+label{ border-color:var(--accent); background:var(--mint-lt); }
-        .role-opt input:checked+label i{ color:var(--accent); }
-        .btn-reg{
-            background:var(--sidebar); color:#fff; border:none;
-            border-radius:12px; padding:12px; font-weight:700;
-            font-size:.9rem; width:100%; font-family:inherit;
-            cursor:pointer; transition:background .2s,transform .15s;
-        }
-        .btn-reg:hover{ background:var(--sid-dark); transform:translateY(-1px); }
-        .alert-err{
-            background:#fef2f2; border-left:4px solid #f87171;
-            border-radius:12px; color:#991b1b;
-            font-size:.84rem; padding:12px 16px; margin-bottom:16px;
-        }
-        .alert-ok{
-            background:var(--teal-lt); border-left:4px solid var(--teal);
-            border-radius:12px; color:#1a6b6b;
-            font-size:.88rem; padding:14px 18px;
-        }
-        .footer-link{ text-align:center; margin-top:18px; font-size:.82rem; color:var(--muted); }
-        .footer-link a{ color:var(--accent); font-weight:600; text-decoration:none; }
-        .footer-link a:hover{ text-decoration:underline; }
-        #student-fields{ display:none; }
-    </style>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Đăng ký — ISchool Internship</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@700;800&display=swap" rel="stylesheet">
+<style>
+:root{--ds:#5D7B6F;--ds2:#3D5A50;--ds3:#2A3F38;--sg:#A4C3A2;--sm:#B0D4B8;--wc:#EAE7D6}
+*{font-family:'Inter',sans-serif;box-sizing:border-box}
+body{margin:0;min-height:100vh;background:linear-gradient(135deg,#eef5f2,#e6efe8);
+  display:flex;flex-direction:column;align-items:center;padding:0}
+/* Guest Navbar */
+.guest-nav{width:100%;background:rgba(255,255,255,.92);backdrop-filter:blur(10px);
+  border-bottom:1px solid rgba(164,195,162,.25);padding:0 24px;height:52px;
+  display:flex;align-items:center;justify-content:space-between;z-index:100;
+  box-shadow:0 2px 12px rgba(93,123,111,.08)}
+.guest-nav .nav-brand{display:flex;align-items:center;gap:8px;text-decoration:none;font-family:'Plus Jakarta Sans',sans-serif;font-size:.95rem;font-weight:800;color:var(--ds3)}
+.guest-nav .nav-brand span{font-size:1.2rem}
+.guest-nav .nav-links{display:flex;align-items:center;gap:4px}
+.guest-nav .nav-links a{text-decoration:none;color:#4a6058;font-size:.82rem;font-weight:600;
+  padding:6px 13px;border-radius:8px;transition:all .18s;display:flex;align-items:center;gap:5px}
+.guest-nav .nav-links a:hover{background:rgba(93,123,111,.1);color:var(--ds2)}
+.guest-nav .nav-actions{display:flex;align-items:center;gap:8px}
+.guest-nav .nav-actions a{text-decoration:none;font-size:.82rem;font-weight:700;padding:7px 16px;border-radius:8px;transition:all .2s}
+.guest-nav .btn-outline-nav{color:var(--ds);border:1.5px solid var(--ds);background:transparent}
+.guest-nav .btn-outline-nav:hover{background:rgba(93,123,111,.08)}
+.guest-nav .btn-solid-nav{color:#fff;background:linear-gradient(135deg,var(--ds),var(--ds2));border:none}
+.guest-nav .btn-solid-nav:hover{transform:translateY(-1px);box-shadow:0 4px 12px rgba(93,123,111,.3)}
+.page-content{width:100%;display:flex;align-items:center;justify-content:center;padding:24px 16px;flex:1}
+.wrap{width:100%;max-width:520px}
+.rh{background:linear-gradient(135deg,var(--ds3),var(--ds2),#4a8a70);
+  border-radius:18px 18px 0 0;padding:28px 32px 24px;color:#fff;position:relative;overflow:hidden}
+.rh::before{content:'';position:absolute;top:-50px;right:-50px;width:180px;height:180px;
+  background:radial-gradient(circle,rgba(176,212,184,.2),transparent 70%);border-radius:50%}
+.rh .brand{font-family:'Plus Jakarta Sans',sans-serif;font-size:.9rem;font-weight:800;
+  color:var(--sm);letter-spacing:2px;text-transform:uppercase;margin-bottom:8px;display:flex;align-items:center;gap:7px;position:relative;z-index:1}
+.rh h3{font-family:'Plus Jakarta Sans',sans-serif;font-size:1.4rem;font-weight:800;margin:0 0 3px;position:relative;z-index:1}
+.rh p{font-size:.82rem;opacity:.72;margin:0;position:relative;z-index:1}
+.rb{background:#fff;border-radius:0 0 18px 18px;padding:28px 32px 32px;
+  box-shadow:0 14px 40px rgba(93,123,111,.14)}
+.form-label{font-weight:600;font-size:.78rem;color:var(--ds2);margin-bottom:4px}
+.form-control,.form-select{border-radius:9px;border:1.5px solid rgba(164,195,162,.35);
+  font-size:.87rem;padding:10px 13px;background:rgba(164,195,162,.04);transition:all .2s}
+.form-control:focus,.form-select:focus{border-color:var(--ds);box-shadow:0 0 0 3px rgba(93,123,111,.1);background:#fff;outline:none}
+.input-group .form-control{border-radius:9px 0 0 9px}
+.eye-btn{border:1.5px solid rgba(164,195,162,.35);border-left:none;border-radius:0 9px 9px 0;
+  background:rgba(164,195,162,.04);color:var(--tl);padding:0 12px;cursor:pointer}
+/* Role cards */
+.role-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.ro{position:relative}
+.ro input{position:absolute;opacity:0;width:0;height:0}
+.ro label{display:flex;flex-direction:column;align-items:center;gap:6px;padding:16px 10px 12px;
+  border-radius:12px;border:2px solid rgba(164,195,162,.3);cursor:pointer;
+  transition:all .18s;background:rgba(164,195,162,.04);text-align:center}
+.ro label .ri{width:42px;height:42px;border-radius:11px;background:rgba(164,195,162,.12);
+  display:flex;align-items:center;justify-content:center;font-size:1.25rem;transition:all .18s}
+.ro label .ri i{color:#7a9590;transition:color .18s}
+.ro label .rn{font-size:.82rem;font-weight:700;color:var(--ds3)}
+.ro label .rs{font-size:.67rem;color:#7a9590;line-height:1.3}
+.ro input:checked+label{border-color:var(--ds);background:rgba(93,123,111,.06)}
+.ro input:checked+label .ri{background:rgba(93,123,111,.15)}
+.ro input:checked+label .ri i{color:var(--ds)}
+.ro label:hover{border-color:var(--sg);transform:translateY(-2px);box-shadow:0 4px 10px rgba(93,123,111,.1)}
+/* Student extra fields */
+#sf{background:rgba(176,212,184,.07);border:1.5px solid rgba(164,195,162,.28);
+  border-radius:11px;padding:14px;margin-top:4px}
+/* Strength */
+.swrap{height:3px;background:rgba(164,195,162,.2);border-radius:2px;margin-top:5px}
+.sbar{height:3px;border-radius:2px;transition:all .3s;background:transparent}
+/* Submit */
+.btn-reg{background:linear-gradient(135deg,var(--ds),var(--ds2));border:none;border-radius:10px;
+  padding:12px;font-weight:700;font-size:.92rem;color:#fff;width:100%;cursor:pointer;transition:all .25s}
+.btn-reg:hover{transform:translateY(-2px);box-shadow:0 7px 20px rgba(93,123,111,.35)}
+.alert-e{background:rgba(192,96,80,.07);border-left:4px solid #c06050;border-radius:10px;
+  color:#7a2020;font-size:.82rem;padding:10px 14px;margin-bottom:16px}
+.alert-ok{background:rgba(74,158,106,.1);border-left:4px solid #4a9e6a;border-radius:12px;
+  color:#1a4a30;padding:20px;text-align:center}
+.divl{display:flex;align-items:center;gap:10px;color:#a4c3a2;font-size:.75rem;margin:16px 0}
+.divl::before,.divl::after{content:'';flex:1;height:1px;background:rgba(164,195,162,.28)}
+@media(max-width:600px){.guest-nav .nav-links{display:none}}
+</style>
 </head>
 <body>
-<div class="reg-card">
-    <div class="reg-header">
-        <div class="brand">ISCHOOL<span>.</span></div>
-        <h3>Tạo tài khoản mới</h3>
-        <p>Điền thông tin để đăng ký tham gia hệ thống</p>
+
+<!-- Guest Navbar -->
+<nav class="guest-nav">
+  <a href="/internship-management-system/public/index.php" class="nav-brand"><span>🎓</span>ISchool Internship</a>
+  <div class="nav-links">
+    <a href="/internship-management-system/public/index.php"><i class="bi bi-house-fill"></i>Trang chủ</a>
+    <a href="/internship-management-system/public/internships.php"><i class="bi bi-briefcase-fill"></i>Vị trí thực tập</a>
+    <a href="/internship-management-system/public/about.php"><i class="bi bi-info-circle-fill"></i>Giới thiệu</a>
+  </div>
+  <div class="nav-actions">
+    <a href="login.php" class="btn-outline-nav">Đăng nhập</a>
+    <a href="register.php" class="btn-solid-nav">Đăng ký</a>
+  </div>
+</nav>
+
+<div class="page-content">
+<div class="wrap">
+  <div class="rh">
+    <div class="brand"><i class="bi bi-mortarboard-fill"></i>ISchool Internship</div>
+    <h3>Tạo tài khoản mới</h3>
+    <p>Tham gia hệ thống quản lý thực tập</p>
+  </div>
+  <div class="rb">
+    <?php if($success): ?>
+    <div class="alert-ok">
+      <div style="font-size:2.5rem;margin-bottom:8px">🎉</div>
+      <div style="font-family:'Plus Jakarta Sans',sans-serif;font-size:1.15rem;font-weight:800;margin-bottom:6px">Đăng ký thành công!</div>
+      <p style="font-size:.86rem;margin-bottom:14px;opacity:.8">Đăng nhập để hoàn thiện hồ sơ và bắt đầu sử dụng.</p>
+      <a href="login.php" style="display:inline-flex;align-items:center;gap:7px;background:linear-gradient(135deg,#5D7B6F,#3D5A50);color:#fff;padding:10px 22px;border-radius:9px;text-decoration:none;font-weight:700;font-size:.88rem">
+        <i class="bi bi-box-arrow-in-right"></i>Đăng nhập ngay
+      </a>
     </div>
-    <div class="reg-body">
-        <?php if ($success): ?>
-        <div class="alert-ok">
-            <i class="bi bi-check-circle-fill me-2"></i>
-            <strong>Đăng ký thành công!</strong> Tài khoản đã được tạo.
-            <div class="mt-2"><a href="login.php" style="color:var(--accent);font-weight:700"><i class="bi bi-box-arrow-in-right me-1"></i>Đăng nhập ngay →</a></div>
-        </div>
-        <?php else: ?>
-        <?php if (!empty($errors)): ?>
-        <div class="alert-err"><i class="bi bi-exclamation-circle me-2"></i>
-            <ul class="mb-0 ps-3 mt-1"><?php foreach($errors as $e): ?><li><?= $e ?></li><?php endforeach; ?></ul>
-        </div>
-        <?php endif; ?>
-        <form method="POST">
-            <div class="mb-4">
-                <label class="form-label">Loại tài khoản <span class="text-danger">*</span></label>
-                <div class="role-grid">
-                    <div class="role-opt">
-                        <input type="radio" name="role" id="r-student" value="student" <?= ($_POST['role']??'')==='student'?'checked':'' ?>>
-                        <label for="r-student"><i class="bi bi-mortarboard-fill"></i><span>Sinh viên</span><small>Đăng ký thực tập</small></label>
-                    </div>
-                    <div class="role-opt">
-                        <input type="radio" name="role" id="r-company" value="company" <?= ($_POST['role']??'')==='company'?'checked':'' ?>>
-                        <label for="r-company"><i class="bi bi-building-fill"></i><span>Doanh nghiệp</span><small>Đăng vị trí</small></label>
-                    </div>
-                    <div class="role-opt">
-                        <input type="radio" name="role" id="r-lecturer" value="lecturer" <?= ($_POST['role']??'')==='lecturer'?'checked':'' ?>>
-                        <label for="r-lecturer"><i class="bi bi-person-workspace"></i><span>Giảng viên</span><small>Hướng dẫn SV</small></label>
-                    </div>
-                    <div class="role-opt">
-                        <input type="radio" name="role" id="r-admin" value="admin" <?= ($_POST['role']??'')==='admin'?'checked':'' ?>>
-                        <label for="r-admin"><i class="bi bi-shield-fill-check"></i><span>Quản trị viên</span><small>Quản lý hệ thống</small></label>
-                    </div>
-                </div>
-            </div>
-            <div class="row g-3">
-                <div class="col-12">
-                    <label class="form-label">Họ và tên <span class="text-danger">*</span></label>
-                    <input type="text" name="full_name" class="form-control" value="<?= htmlspecialchars($_POST['full_name']??'') ?>" placeholder="Nguyễn Văn A" required>
-                </div>
-                <div class="col-12">
-                    <label class="form-label">Email <span class="text-danger">*</span></label>
-                    <input type="email" name="email" class="form-control" value="<?= htmlspecialchars($_POST['email']??'') ?>" placeholder="example@email.com" required>
-                </div>
-                <div class="col-md-6">
-                    <label class="form-label">Mật khẩu <span class="text-danger">*</span></label>
-                    <div class="input-group">
-                        <input type="password" name="password" id="pw1" class="form-control" placeholder="Tối thiểu 6 ký tự" minlength="6" required>
-                        <button type="button" class="btn-eye" onclick="togglePw('pw1','i1')"><i class="bi bi-eye" id="i1"></i></button>
-                    </div>
-                </div>
-                <div class="col-md-6">
-                    <label class="form-label">Xác nhận mật khẩu <span class="text-danger">*</span></label>
-                    <div class="input-group">
-                        <input type="password" name="confirm_password" id="pw2" class="form-control" placeholder="Nhập lại" required>
-                        <button type="button" class="btn-eye" onclick="togglePw('pw2','i2')"><i class="bi bi-eye" id="i2"></i></button>
-                    </div>
-                </div>
-                <div class="col-12">
-                    <label class="form-label">Số điện thoại</label>
-                    <input type="text" name="phone" class="form-control" value="<?= htmlspecialchars($_POST['phone']??'') ?>" placeholder="0901234567">
-                </div>
-            </div>
-            <div id="student-fields" class="mt-3">
-                <div class="row g-3">
-                    <div class="col-md-6">
-                        <label class="form-label">Mã sinh viên</label>
-                        <input type="text" name="student_code" class="form-control" value="<?= htmlspecialchars($_POST['student_code']??'') ?>" placeholder="SV001">
-                    </div>
-                    <div class="col-md-6">
-                        <label class="form-label">Chuyên ngành</label>
-                        <input type="text" name="major" class="form-control" value="<?= htmlspecialchars($_POST['major']??'') ?>" placeholder="Công nghệ thông tin">
-                    </div>
-                </div>
-            </div>
-            <div class="mt-4">
-                <button type="submit" class="btn-reg"><i class="bi bi-person-plus-fill me-2"></i>Tạo tài khoản</button>
-            </div>
-        </form>
-        <div class="footer-link">Đã có tài khoản? <a href="login.php">Đăng nhập</a></div>
-        <?php endif; ?>
+    <?php else: ?>
+
+    <?php if(!empty($errors)): ?>
+    <div class="alert-e"><i class="bi bi-exclamation-triangle-fill me-2"></i>
+      <ul class="mb-0 ps-3 mt-1"><?php foreach($errors as $e): ?><li><?=htmlspecialchars($e)?></li><?php endforeach; ?></ul>
     </div>
-</div>
+    <?php endif; ?>
+
+    <form method="POST" id="rf">
+      <!-- Loại tài khoản -->
+      <div class="mb-4">
+        <label class="form-label">Loại tài khoản <span class="text-danger">*</span></label>
+        <div class="role-grid">
+          <div class="ro">
+            <input type="radio" name="role" id="rs" value="student" <?=($_POST['role']??'')==='student'?'checked':''?>>
+            <label for="rs">
+              <div class="ri"><i class="bi bi-mortarboard-fill"></i></div>
+              <span class="rn">Sinh viên</span>
+              <span class="rs">Tìm &amp; ứng tuyển thực tập</span>
+            </label>
+          </div>
+          <div class="ro">
+            <input type="radio" name="role" id="rc" value="company" <?=($_POST['role']??'')==='company'?'checked':''?>>
+            <label for="rc">
+              <div class="ri"><i class="bi bi-building-fill"></i></div>
+              <span class="rn">Doanh nghiệp</span>
+              <span class="rs">Đăng vị trí thực tập</span>
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <div class="row g-3">
+        <div class="col-12">
+          <label class="form-label" id="fn-label">Họ và tên <span class="text-danger">*</span></label>
+          <input type="text" name="full_name" class="form-control" required
+                 value="<?=htmlspecialchars($_POST['full_name']??'')?>" placeholder="Nguyễn Văn A">
+        </div>
+        <div class="col-12">
+          <label class="form-label">Email <span class="text-danger">*</span></label>
+          <input type="email" name="email" class="form-control" required
+                 value="<?=htmlspecialchars($_POST['email']??'')?>" placeholder="email@example.com">
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">Mật khẩu <span class="text-danger">*</span></label>
+          <div class="input-group">
+            <input type="password" name="password" id="p1" class="form-control" minlength="6"
+                   placeholder="Tối thiểu 6 ký tự" oninput="strength(this.value)" required>
+            <button type="button" class="eye-btn" onclick="toggle('p1','e1')"><i class="bi bi-eye" id="e1"></i></button>
+          </div>
+          <div class="swrap"><div class="sbar" id="sb"></div></div>
+          <div id="st" style="font-size:.68rem;color:#7a9590;margin-top:2px"></div>
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">Xác nhận mật khẩu <span class="text-danger">*</span></label>
+          <div class="input-group">
+            <input type="password" name="confirm_password" id="p2" class="form-control" placeholder="Nhập lại" required>
+            <button type="button" class="eye-btn" onclick="toggle('p2','e2')"><i class="bi bi-eye" id="e2"></i></button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Student extra -->
+      <div id="sf" style="display:none" class="mt-3">
+        <div style="font-size:.76rem;font-weight:700;color:var(--ds);margin-bottom:8px;display:flex;align-items:center;gap:6px">
+          <i class="bi bi-mortarboard-fill"></i>Thông tin học vấn (điền ngay hoặc bổ sung sau)
+        </div>
+        <div class="row g-2">
+          <div class="col-6">
+            <label class="form-label">Mã sinh viên</label>
+            <input type="text" name="student_code" class="form-control" placeholder="SV2024001"
+                   value="<?=htmlspecialchars($_POST['student_code']??'')?>">
+          </div>
+          <div class="col-6">
+            <label class="form-label">Chuyên ngành</label>
+            <input type="text" name="major" class="form-control" placeholder="CNTT"
+                   value="<?=htmlspecialchars($_POST['major']??'')?>">
+          </div>
+        </div>
+      </div>
+
+      <div class="mt-4">
+        <button type="submit" class="btn-reg">
+          <i class="bi bi-person-plus-fill me-2"></i>Tạo tài khoản
+        </button>
+      </div>
+    </form>
+    <div class="divl">hoặc</div>
+    <div class="text-center" style="font-size:.82rem;color:#7a9590">
+      Đã có tài khoản?
+      <a href="login.php" style="color:var(--ds);font-weight:700;text-decoration:none">Đăng nhập ngay</a>
+    </div>
+    <?php endif; ?>
+  </div>
+</div><!-- /.wrap -->
+</div><!-- /.page-content -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 <script>
-function togglePw(id,icId){
-    const p=document.getElementById(id),i=document.getElementById(icId);
-    p.type=p.type==='password'?'text':'password';
-    i.className=p.type==='text'?'bi bi-eye-slash':'bi bi-eye';
-}
-function updateRoleFields(){
-    const role=document.querySelector('input[name="role"]:checked')?.value;
-    document.getElementById('student-fields').style.display=role==='student'?'block':'none';
-}
-document.querySelectorAll('input[name="role"]').forEach(r=>r.addEventListener('change',updateRoleFields));
-updateRoleFields();
+function toggle(id,ico){ const i=document.getElementById(id),e=document.getElementById(ico); i.type=i.type==='password'?'text':'password'; e.className=i.type==='text'?'bi bi-eye-slash':'bi bi-eye'; }
+function strength(v){ const b=document.getElementById('sb'),t=document.getElementById('st'); let s=0;
+  if(v.length>=6)s++;if(v.length>=10)s++;if(/[A-Z]/.test(v))s++;if(/\d/.test(v))s++;if(/[^A-Za-z0-9]/.test(v))s++;
+  const l=[{w:'0%',c:'transparent',t:''},{w:'25%',c:'#c06050',t:'Yếu'},{w:'50%',c:'#c49a6c',t:'Trung bình'},{w:'75%',c:'#4a9e6a',t:'Khá'},{w:'100%',c:'#2d7a50',t:'Mạnh'}];
+  b.style.width=l[Math.min(s,4)].w; b.style.background=l[Math.min(s,4)].c; t.textContent=l[Math.min(s,4)].t; t.style.color=l[Math.min(s,4)].c; }
+function updateRole(){ const r=document.querySelector('input[name=role]:checked')?.value;
+  document.getElementById('sf').style.display=r==='student'?'block':'none';
+  document.getElementById('fn-label').firstChild.textContent=r==='company'?'Tên công ty':'Họ và tên'; }
+document.querySelectorAll('input[name=role]').forEach(r=>r.addEventListener('change',updateRole)); updateRole();
+document.getElementById('rf').addEventListener('submit',function(e){
+  const p1=document.getElementById('p1').value,p2=document.getElementById('p2').value;
+  if(p1!==p2){e.preventDefault();alert('Mật khẩu xác nhận không khớp!');}
+  if(!document.querySelector('input[name=role]:checked')){e.preventDefault();alert('Vui lòng chọn loại tài khoản!');}
+});
 </script>
-</body>
-</html>
+</body></html>
