@@ -2,119 +2,161 @@
 session_start();
 require_once '../../config/database.php';
 require_once '../../includes/functions.php';
+requireRole('company');
 
-$id = (int)($_GET['id'] ?? 0);
-if ($id <= 0) redirect('list.php');
+$uid=$_SESSION['user_id'];
+$stmt=$conn->prepare("SELECT cp.*,u.email,u.is_profile_completed FROM company_profiles cp JOIN users u ON cp.user_id=u.user_id WHERE cp.user_id=?");
+$stmt->bind_param('i',$uid); $stmt->execute();
+$p=$stmt->get_result()->fetch_assoc();
+if(!$p){ redirect(BASE_PATH.'/auth/login.php'); }
 
-$stmt = $conn->prepare("SELECT * FROM companies WHERE company_id = ?");
-$stmt->bind_param('i', $id);
-$stmt->execute();
-$company = $stmt->get_result()->fetch_assoc();
-if (!$company) { setFlash('error', 'Không tìm thấy doanh nghiệp.'); redirect('list.php'); }
+$errors=[];
+if($_SERVER['REQUEST_METHOD']==='POST'){
+    $name    =sanitize($_POST['company_name']??'');
+    $tax     =sanitize($_POST['tax_code']??'');
+    $address =sanitize($_POST['address']??'');
+    $phone   =sanitize($_POST['phone']??'');
+    $website =sanitize($_POST['website']??'');
+    $industry=sanitize($_POST['industry']??'');
+    $size    =sanitize($_POST['company_size']??'');
+    $desc    =sanitize($_POST['description']??'');
 
-$errors = [];
+    if(empty($name))    $errors[]='Tên công ty là bắt buộc.';
+    if(empty($tax))     $errors[]='Mã số thuế là bắt buộc.';
+    if(empty($address)) $errors[]='Địa chỉ là bắt buộc.';
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $company_name  = sanitize($_POST['company_name'] ?? '');
-    $industry      = sanitize($_POST['industry'] ?? '');
-    $address       = sanitize($_POST['address'] ?? '');
-    $description   = sanitize($_POST['description'] ?? '');
-    $contact_email = sanitize($_POST['contact_email'] ?? '');
-    $phone         = sanitize($_POST['phone'] ?? '');
-    $status        = sanitize($_POST['status'] ?? 'active');
-
-    if (empty($company_name)) $errors[] = 'Tên doanh nghiệp không được để trống.';
-    if (!empty($contact_email) && !filter_var($contact_email, FILTER_VALIDATE_EMAIL))
-        $errors[] = 'Email liên hệ không hợp lệ.';
-
-    // BUSINESS RULE: Duplicate email check (exclude current)
-    if (empty($errors) && !empty($contact_email)) {
-        $chk = $conn->prepare("SELECT company_id FROM companies WHERE contact_email = ? AND company_id != ?");
-        $chk->bind_param('si', $contact_email, $id);
-        $chk->execute();
-        if ($chk->get_result()->num_rows > 0) {
-            $errors[] = 'Email liên hệ đã được sử dụng bởi doanh nghiệp khác.';
-        }
+    $logo=$p['logo'];
+    if(!empty($_FILES['logo']['tmp_name'])){
+        $up=uploadFile($_FILES['logo'],'logos',['jpg','jpeg','png'],2);
+        if($up['ok']) $logo=$up['path']; else $errors[]='Logo: '.$up['err'];
     }
 
-    if (empty($errors)) {
-        $stmt = $conn->prepare(
-            "UPDATE companies SET company_name=?, industry=?, address=?, description=?, contact_email=?, phone=?, status=?
-             WHERE company_id=?"
-        );
-        $stmt->bind_param('sssssssi', $company_name, $industry, $address, $description, $contact_email, $phone, $status, $id);
-
-        if ($stmt->execute()) {
-            setFlash('success', "Đã cập nhật doanh nghiệp <strong>$company_name</strong>.");
-            redirect('list.php');
-        } else {
-            $errors[] = 'Lỗi khi cập nhật: ' . $conn->error;
-        }
+    $license=$p['business_license_file'];
+    if(!empty($_FILES['license']['tmp_name'])){
+        $up=uploadFile($_FILES['license'],'licenses',['pdf','jpg','jpeg','png'],10);
+        if($up['ok']) $license=$up['path']; else $errors[]='Giấy phép: '.$up['err'];
     }
-    $company = array_merge($company, $_POST);
+
+    if(empty($errors)&&!$license) $errors[]='Giấy phép kinh doanh là bắt buộc.';
+
+    if(empty($errors)){
+        $u=$conn->prepare("UPDATE company_profiles SET company_name=?,tax_code=?,address=?,phone=?,website=?,industry=?,company_size=?,description=?,logo=?,business_license_file=? WHERE user_id=?");
+        $u->bind_param('ssssssssssi',$name,$tax,$address,$phone,$website,$industry,$size,$desc,$logo,$license,$uid);
+        if($u->execute()){
+            $uc=$conn->prepare("UPDATE users SET is_profile_completed=1 WHERE user_id=?");
+            $uc->bind_param('i',$uid); $uc->execute();
+            $_SESSION['full_name']=$name;
+            setFlash('success','✅ Đã cập nhật hồ sơ doanh nghiệp!');
+            redirect(getDashboardUrl());
+        } else $errors[]='Lỗi: '.$conn->error;
+    }
+    $p=array_merge($p,$_POST);
 }
+
+$logoUrl=$p['logo']?UPLOAD_URL.'/'.$p['logo']:'https://ui-avatars.com/api/?name='.urlencode($p['company_name']??'DN').'&background=5D7B6F&color=fff&size=120&bold=true';
 ?>
 <?php include '../../includes/header.php'; ?>
 
-<div class="d-flex justify-content-between align-items-center mb-3">
-    <h4><i class="bi bi-pencil-square me-2 text-warning"></i>Chỉnh sửa Doanh nghiệp</h4>
-    <a href="list.php" class="btn btn-secondary btn-sm"><i class="bi bi-arrow-left me-1"></i>Quay lại</a>
-</div>
-
-<?php if ($errors): ?>
-<div class="alert alert-danger">
-    <ul class="mb-0"><?php foreach ($errors as $e): ?><li><?= $e ?></li><?php endforeach; ?></ul>
+<?php if(!$p['is_profile_completed']): ?>
+<div class="alert alert-warning fu" style="border-radius:12px">
+  <i class="bi bi-exclamation-triangle-fill me-2"></i>
+  <strong>Hồ sơ chưa hoàn thiện!</strong> Cần có: Tên, MST, Địa chỉ và Giấy phép KD để đăng vị trí thực tập.
 </div>
 <?php endif; ?>
 
-<div class="card">
-    <div class="card-body">
-        <form method="POST">
-            <div class="row g-3">
-                <div class="col-md-6">
-                    <label class="form-label fw-semibold">Tên doanh nghiệp <span class="text-danger">*</span></label>
-                    <input type="text" name="company_name" class="form-control"
-                           value="<?= htmlspecialchars($company['company_name']) ?>" required>
-                </div>
-                <div class="col-md-6">
-                    <label class="form-label fw-semibold">Ngành nghề</label>
-                    <input type="text" name="industry" class="form-control"
-                           value="<?= htmlspecialchars($company['industry'] ?? '') ?>">
-                </div>
-                <div class="col-md-6">
-                    <label class="form-label fw-semibold">Email liên hệ</label>
-                    <input type="email" name="contact_email" class="form-control"
-                           value="<?= htmlspecialchars($company['contact_email'] ?? '') ?>">
-                </div>
-                <div class="col-md-6">
-                    <label class="form-label fw-semibold">Điện thoại</label>
-                    <input type="text" name="phone" class="form-control"
-                           value="<?= htmlspecialchars($company['phone'] ?? '') ?>">
-                </div>
-                <div class="col-12">
-                    <label class="form-label fw-semibold">Địa chỉ</label>
-                    <input type="text" name="address" class="form-control"
-                           value="<?= htmlspecialchars($company['address'] ?? '') ?>">
-                </div>
-                <div class="col-12">
-                    <label class="form-label fw-semibold">Mô tả</label>
-                    <textarea name="description" class="form-control" rows="3"><?= htmlspecialchars($company['description'] ?? '') ?></textarea>
-                </div>
-                <div class="col-md-4">
-                    <label class="form-label fw-semibold">Trạng thái</label>
-                    <select name="status" class="form-select">
-                        <option value="active"   <?= $company['status']==='active'   ?'selected':'' ?>>Hoạt động</option>
-                        <option value="inactive" <?= $company['status']==='inactive' ?'selected':'' ?>>Vô hiệu hóa</option>
-                    </select>
-                </div>
-            </div>
-            <hr>
-            <button type="submit" class="btn btn-warning">
-                <i class="bi bi-save me-1"></i>Cập nhật
-            </button>
-            <a href="list.php" class="btn btn-secondary ms-2">Hủy</a>
-        </form>
-    </div>
+<div class="ph fu1">
+  <div><h4><i class="bi bi-building-fill me-2"></i>Hồ sơ Doanh nghiệp</h4><div class="ph-sub">Hoàn thiện để đăng vị trí thực tập</div></div>
+  <a href="<?=getDashboardUrl()?>" class="btn btn-secondary"><i class="bi bi-arrow-left me-1"></i>Quay lại</a>
 </div>
 
+<?php if(!empty($errors)): ?><div class="alert alert-danger fu"><ul class="mb-0"><?php foreach($errors as $e):?><li><?=htmlspecialchars($e)?></li><?php endforeach;?></ul></div><?php endif; ?>
+<?php showFlash(); ?>
+
+<form method="POST" enctype="multipart/form-data">
+<div class="row g-4">
+  <!-- Logo + License -->
+  <div class="col-md-3">
+    <div class="card fu text-center">
+      <div class="card-body">
+        <img src="<?=$logoUrl?>" id="logo_prev" style="width:100px;height:100px;border-radius:14px;object-fit:cover;border:2px solid var(--sg);margin-bottom:12px">
+        <div class="mb-3">
+          <label class="form-label">Logo công ty</label>
+          <input type="file" name="logo" class="form-control form-control-sm" accept="image/*" onchange="prevImg(this,'logo_prev')">
+          <div class="small text-muted mt-1">JPG/PNG, tối đa 2MB</div>
+        </div>
+        <hr>
+        <label class="form-label fw7" style="color:#9a3030;font-size:.8rem">
+          <i class="bi bi-file-earmark-check-fill me-1"></i>Giấy phép KD *
+        </label>
+        <?php if($p['business_license_file']): ?>
+        <a href="<?=UPLOAD_URL.'/'.$p['business_license_file']?>" target="_blank" class="btn btn-success btn-sm w-100 mb-2">
+          <i class="bi bi-check-circle-fill me-1"></i>Đã tải lên — Xem
+        </a>
+        <?php else: ?>
+        <div class="alert alert-danger p-2 mb-2" style="font-size:.75rem;border-radius:8px">⚠️ Chưa có — Bắt buộc!</div>
+        <?php endif; ?>
+        <input type="file" name="license" class="form-control form-control-sm" accept=".pdf,.jpg,.jpeg,.png">
+        <div class="small text-muted mt-1">PDF/JPG, tối đa 10MB</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Form fields -->
+  <div class="col-md-9">
+    <div class="card fu1">
+      <div class="card-body">
+        <h6 class="fw7 mb-3" style="color:var(--ds)"><i class="bi bi-building me-2"></i>Thông tin cơ bản</h6>
+        <div class="row g-3">
+          <div class="col-md-8">
+            <label class="form-label">Tên doanh nghiệp *</label>
+            <input type="text" name="company_name" class="form-control" value="<?=htmlspecialchars($p['company_name']??'')?>" required>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">Mã số thuế *</label>
+            <input type="text" name="tax_code" class="form-control" value="<?=htmlspecialchars($p['tax_code']??'')?>" required placeholder="0123456789">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Lĩnh vực</label>
+            <select name="industry" class="form-select">
+              <option value="">— Chọn —</option>
+              <?php foreach(['Công nghệ thông tin','Tài chính - Ngân hàng','Thương mại điện tử','Sản xuất','Giáo dục','Y tế','Marketing','Logistics','Bất động sản','Khác'] as $ind): ?>
+              <option value="<?=$ind?>" <?=($p['industry']==$ind)?'selected':''?>><?=$ind?></option>
+              <?php endforeach; ?>
+            </select>
+          </div>
+          <div class="col-md-3">
+            <label class="form-label">Quy mô nhân sự</label>
+            <select name="company_size" class="form-select">
+              <option value="">— Chọn —</option>
+              <?php foreach(['1-10','11-50','51-200','201-500','500+'] as $sz): ?>
+              <option value="<?=$sz?>" <?=($p['company_size']==$sz)?'selected':''?>><?=$sz?> người</option>
+              <?php endforeach; ?>
+            </select>
+          </div>
+          <div class="col-md-3">
+            <label class="form-label">Số điện thoại</label>
+            <input type="text" name="phone" class="form-control" value="<?=htmlspecialchars($p['phone']??'')?>">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Website</label>
+            <input type="url" name="website" class="form-control" value="<?=htmlspecialchars($p['website']??'')?>" placeholder="https://...">
+          </div>
+          <div class="col-12">
+            <label class="form-label">Địa chỉ trụ sở *</label>
+            <input type="text" name="address" class="form-control" value="<?=htmlspecialchars($p['address']??'')?>" required placeholder="Số nhà, đường, quận, thành phố">
+          </div>
+          <div class="col-12">
+            <label class="form-label">Giới thiệu công ty</label>
+            <textarea name="description" class="form-control" rows="3" placeholder="Mô tả về công ty, văn hóa làm việc..."><?=htmlspecialchars($p['description']??'')?></textarea>
+          </div>
+        </div>
+        <hr class="my-3">
+        <button type="submit" class="btn btn-primary"><i class="bi bi-save me-1"></i>Lưu hồ sơ</button>
+        <a href="<?=getDashboardUrl()?>" class="btn btn-secondary ms-2">Bỏ qua</a>
+      </div>
+    </div>
+  </div>
+</div>
+</form>
+<script>function prevImg(i,id){if(i.files[0]){const r=new FileReader();r.onload=e=>document.getElementById(id).src=e.target.result;r.readAsDataURL(i.files[0]);}}</script>
 <?php include '../../includes/footer.php'; ?>
