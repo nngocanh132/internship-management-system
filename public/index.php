@@ -19,34 +19,11 @@ if($r&&$r!==true) while($row=$r->fetch_assoc()) $jobs[]=$row;
 <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@700;800;900&display=swap" rel="stylesheet">
 <style>
-:root{--pg:#4A6741;--pg2:#3A5232;--pg3:#2C3E28;--sg:#8DB87C;--sm:#B5D4A8;--bg:#EEEADE;--td:#2C3A28;--tm:#4A6058;--tl:#7A9070;}
+:root{--pg:#5D7B6F;--pg2:#3D5A50;--pg3:#2A3F38;--sg:#A4C3A2;--sm:#B0D4B8;--bg:#EAE7D6;--td:#1A2E28;--tm:#4A6058;--tl:#7A9590;}
 *,*::before,*::after{box-sizing:border-box}
-body{font-family:'Inter',sans-serif;background:#fff;color:var(--td);margin:0;padding-top:70px;}
+body{font-family:'Inter',sans-serif;background:#fff;color:var(--td);margin:0;padding-top:56px;}
 ::-webkit-scrollbar{width:5px}::-webkit-scrollbar-thumb{background:var(--sg);border-radius:4px}
-/* NAV STYLES */
-.pub-nav{position:fixed;top:0;left:0;right:0;z-index:1000;background:rgba(255,255,255,.92);backdrop-filter:blur(18px);border-bottom:1px solid rgba(141,184,124,.2);transition:background .3s,box-shadow .3s;height:70px;}
-.pub-nav.scrolled{background:rgba(255,255,255,.98);box-shadow:0 4px 24px rgba(44,62,40,.12);}
-.nav-inner{max-width:1240px;margin:0 auto;display:flex;align-items:center;padding:0 24px;height:70px;gap:0;}
-.nav-brand{display:flex;align-items:center;gap:11px;flex-shrink:0;margin-right:28px;}
-.nav-logo-box{width:40px;height:40px;background:linear-gradient(135deg,var(--pg),var(--sg));border-radius:11px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:1.1rem;box-shadow:0 4px 12px rgba(74,103,65,.32);transition:transform .2s;flex-shrink:0;}
-.nav-brand:hover .nav-logo-box{transform:rotate(-6deg) scale(1.06)}
-.brand-nm{font-family:'Plus Jakarta Sans',sans-serif;font-size:.93rem;font-weight:800;color:var(--pg3)}
-.brand-sb{font-size:.58rem;color:var(--tl)}
-.nav-links{display:flex;align-items:center;gap:2px;flex:1}
-.nav-lk{display:flex;align-items:center;gap:6px;padding:7px 13px;border-radius:9px;color:var(--tm);font-size:.84rem;font-weight:500;transition:all .18s;position:relative;text-decoration:none;}
-.nav-lk i{font-size:.78rem;opacity:.65;transition:opacity .18s}
-.nav-lk:hover{background:rgba(141,184,124,.14);color:var(--pg)}
-.nav-lk.pub-active{background:rgba(74,103,65,.1);color:var(--pg);font-weight:700}
-.nav-acts{display:flex;align-items:center;gap:10px;flex-shrink:0}
-.btn-nav-login{padding:8px 18px;border-radius:9px;border:1.5px solid rgba(141,184,124,.5);color:var(--pg);font-size:.83rem;font-weight:700;transition:all .18s;background:transparent;display:inline-flex;align-items:center;gap:6px;}
-.btn-nav-login:hover{background:rgba(141,184,124,.12);border-color:var(--pg);color:var(--pg)}
-.btn-nav-reg{padding:8px 18px;border-radius:9px;background:linear-gradient(135deg,var(--pg),var(--pg2));color:#fff;font-size:.83rem;font-weight:700;transition:all .22s;display:inline-flex;align-items:center;gap:6px;box-shadow:0 3px 12px rgba(74,103,65,.28);}
-.btn-nav-reg:hover{transform:translateY(-2px);box-shadow:0 6px 18px rgba(74,103,65,.38);color:#fff}
-.nav-ham{display:none;background:none;border:none;font-size:1.5rem;color:var(--pg);padding:6px;cursor:pointer;border-radius:8px;}
-.nav-ham:hover{background:rgba(141,184,124,.14)}
-.nav-drawer{display:none;flex-direction:column;gap:2px;padding:12px 16px 16px;background:rgba(255,255,255,.99);border-bottom:1px solid rgba(141,184,124,.2);box-shadow:0 8px 24px rgba(44,62,40,.1);}
-.nav-drawer.open{display:flex}
-@media(max-width:840px){.nav-links,.nav-acts{display:none}.nav-ham{display:block}}
+/* NAV STYLES — defined in _nav.php */
 /* ANIMATIONS */
 @keyframes fadeUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:none}}
 @keyframes floatY{0%,100%{transform:translateY(0)}50%{transform:translateY(-14px)}}
@@ -359,7 +336,7 @@ body{font-family:'Inter',sans-serif;background:#fff;color:var(--td);margin:0;pad
       </div>
       <div class="col-6 col-md-2">
         <div style="font-weight:700;color:#fff;font-size:.82rem;margin-bottom:14px;text-transform:uppercase;letter-spacing:.8px;">Trang</div>
-        <?php foreach([['Trang chủ',$base_pub.'/index.php'],['Vị trí TT',$base_pub.'/internships.php'],['Giới thiệu',$base_pub.'/about.php'],['Liên hệ',$base_pub.'/contact.php']] as [$l,$u]):?>
+        <?php foreach([['Trang chủ',$base_pub.'/index.php'],['Vị trí TT',$base_pub.'/internships.php'],['Giới thiệu',$base_pub.'/about.php']] as [$l,$u]):?>
         <a href="<?=$u?>" style="display:block;color:rgba(255,255,255,.55);font-size:.8rem;margin-bottom:8px;transition:color .15s;" onmouseover="this.style.color='var(--sm)'" onmouseout="this.style.color='rgba(255,255,255,.55)'"><?=$l?></a>
         <?php endforeach;?>
       </div>

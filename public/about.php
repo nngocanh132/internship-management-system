@@ -11,32 +11,11 @@ $base_pub = '/internship-management-system/public';
 <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@700;800;900&display=swap" rel="stylesheet">
 <style>
-:root{--pg:#4A6741;--pg2:#3A5232;--pg3:#2C3E28;--sg:#8DB87C;--sm:#B5D4A8;--bg:#EEEADE;--td:#2C3A28;--tm:#4A6058;--tl:#7A9070;}
+:root{--pg:#5D7B6F;--pg2:#3D5A50;--pg3:#2A3F38;--sg:#A4C3A2;--sm:#B0D4B8;--bg:#EAE7D6;--td:#1A2E28;--tm:#4A6058;--tl:#7A9590;}
 *,*::before,*::after{box-sizing:border-box}
-body{font-family:'Inter',sans-serif;background:#fff;color:var(--td);margin:0;padding-top:70px;}
+body{font-family:'Inter',sans-serif;background:#fff;color:var(--td);margin:0;padding-top:56px;}
 ::-webkit-scrollbar{width:5px}::-webkit-scrollbar-thumb{background:var(--sg);border-radius:4px}
-/* NAV */
-.pub-nav{position:fixed;top:0;left:0;right:0;z-index:1000;background:rgba(255,255,255,.92);backdrop-filter:blur(18px);border-bottom:1px solid rgba(141,184,124,.2);transition:background .3s,box-shadow .3s;height:70px;}
-.pub-nav.scrolled{background:rgba(255,255,255,.98);box-shadow:0 4px 24px rgba(44,62,40,.12);}
-.nav-inner{max-width:1240px;margin:0 auto;display:flex;align-items:center;padding:0 24px;height:70px;}
-.nav-brand{display:flex;align-items:center;gap:11px;flex-shrink:0;margin-right:28px;text-decoration:none;}
-.nav-logo-box{width:40px;height:40px;background:linear-gradient(135deg,var(--pg),var(--sg));border-radius:11px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:1.1rem;box-shadow:0 4px 12px rgba(74,103,65,.32);transition:transform .2s;flex-shrink:0;}
-.nav-brand:hover .nav-logo-box{transform:rotate(-6deg) scale(1.06)}
-.brand-nm{font-family:'Plus Jakarta Sans',sans-serif;font-size:.93rem;font-weight:800;color:var(--pg3)}
-.brand-sb{font-size:.58rem;color:var(--tl)}
-.nav-links{display:flex;align-items:center;gap:2px;flex:1}
-.nav-lk{display:flex;align-items:center;gap:6px;padding:7px 13px;border-radius:9px;color:var(--tm);font-size:.84rem;font-weight:500;transition:all .18s;text-decoration:none;}
-.nav-lk:hover{background:rgba(141,184,124,.14);color:var(--pg)}
-.nav-lk.pub-active{background:rgba(74,103,65,.1);color:var(--pg);font-weight:700}
-.nav-acts{display:flex;align-items:center;gap:10px;flex-shrink:0}
-.btn-nav-login{padding:8px 18px;border-radius:9px;border:1.5px solid rgba(141,184,124,.5);color:var(--pg);font-size:.83rem;font-weight:700;transition:all .18s;background:transparent;display:inline-flex;align-items:center;gap:6px;text-decoration:none;}
-.btn-nav-login:hover{background:rgba(141,184,124,.12);color:var(--pg)}
-.btn-nav-reg{padding:8px 18px;border-radius:9px;background:linear-gradient(135deg,var(--pg),var(--pg2));color:#fff;font-size:.83rem;font-weight:700;transition:all .22s;display:inline-flex;align-items:center;gap:6px;box-shadow:0 3px 12px rgba(74,103,65,.28);text-decoration:none;}
-.btn-nav-reg:hover{transform:translateY(-2px);box-shadow:0 6px 18px rgba(74,103,65,.38);color:#fff}
-.nav-ham{display:none;background:none;border:none;font-size:1.5rem;color:var(--pg);padding:6px;cursor:pointer;border-radius:8px;}
-.nav-drawer{display:none;flex-direction:column;gap:2px;padding:12px 16px 16px;background:rgba(255,255,255,.99);border-bottom:1px solid rgba(141,184,124,.2);box-shadow:0 8px 24px rgba(44,62,40,.1);}
-.nav-drawer.open{display:flex}
-@media(max-width:840px){.nav-links,.nav-acts{display:none}.nav-ham{display:block}}
+/* NAV - defined in _nav.php */
 /* ANIMATIONS */
 @keyframes fadeUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:none}}
 @keyframes floatY{0%,100%{transform:translateY(0)}50%{transform:translateY(-12px)}}
@@ -208,9 +187,6 @@ body{font-family:'Inter',sans-serif;background:#fff;color:var(--td);margin:0;pad
       <a href="<?=$base_sys?>/auth/register.php" style="padding:13px 28px;background:linear-gradient(135deg,var(--sm),var(--sg));border-radius:11px;color:var(--pg3);font-weight:800;font-size:.9rem;display:inline-flex;align-items:center;gap:8px;transition:all .22s;box-shadow:0 6px 20px rgba(181,212,168,.3);" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform=''">
         <i class="bi bi-person-plus-fill"></i> Đăng ký ngay
       </a>
-      <a href="<?=$base_pub?>/contact.php" style="padding:13px 28px;border:2px solid rgba(181,212,168,.38);border-radius:11px;color:rgba(255,255,255,.9);font-weight:700;font-size:.9rem;display:inline-flex;align-items:center;gap:8px;transition:all .22s;" onmouseover="this.style.background='rgba(181,212,168,.1)'" onmouseout="this.style.background=''">
-        <i class="bi bi-envelope-fill"></i> Liên hệ chúng tôi
-      </a>
     </div>
   </div>
 </section>
@@ -223,7 +199,7 @@ body{font-family:'Inter',sans-serif;background:#fff;color:var(--td);margin:0;pad
       <span style="font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;color:#fff;font-size:.9rem;">ISchool Internship</span>
     </div>
     <div style="display:flex;align-items:center;justify-content:center;gap:20px;flex-wrap:wrap;margin-bottom:14px;">
-      <?php foreach([['Trang chủ',$base_pub.'/index.php'],['Vị trí TT',$base_pub.'/internships.php'],['Giới thiệu',$base_pub.'/about.php'],['Liên hệ',$base_pub.'/contact.php'],['Đăng nhập',$base_sys.'/auth/login.php']] as [$l,$u]):?>
+      <?php foreach([['Trang chủ',$base_pub.'/index.php'],['Vị trí TT',$base_pub.'/internships.php'],['Giới thiệu',$base_pub.'/about.php'],['Đăng nhập',$base_sys.'/auth/login.php']] as [$l,$u]):?>
       <a href="<?=$u?>" style="color:rgba(255,255,255,.55);font-size:.8rem;transition:color .15s;" onmouseover="this.style.color='var(--sm)'" onmouseout="this.style.color='rgba(255,255,255,.55)'"><?=$l?></a>
       <?php endforeach;?>
     </div>

@@ -27,9 +27,9 @@ $locs=[];$r=$conn->query("SELECT DISTINCT location FROM internships WHERE locati
 <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@700;800;900&display=swap" rel="stylesheet">
 <style>
-:root{--pg:#4A6741;--pg2:#3A5232;--pg3:#2C3E28;--sg:#8DB87C;--sm:#B5D4A8;--bg:#EEEADE;--td:#2C3A28;--tm:#4A6058;--tl:#7A9070;}
+:root{--pg:#5D7B6F;--pg2:#3D5A50;--pg3:#2A3F38;--sg:#A4C3A2;--sm:#B0D4B8;--bg:#EAE7D6;--td:#1A2E28;--tm:#4A6058;--tl:#7A9590;}
 *,*::before,*::after{box-sizing:border-box}
-body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--td);margin:0;padding-top:70px;}
+body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--td);margin:0;padding-top:56px;}
 ::-webkit-scrollbar{width:5px}::-webkit-scrollbar-thumb{background:var(--sg);border-radius:4px}
 .pub-nav{position:fixed;top:0;left:0;right:0;z-index:1000;background:rgba(255,255,255,.92);backdrop-filter:blur(18px);border-bottom:1px solid rgba(141,184,124,.2);transition:background .3s,box-shadow .3s;height:70px;}
 .pub-nav.scrolled{background:rgba(255,255,255,.98);box-shadow:0 4px 24px rgba(44,62,40,.12);}
@@ -184,7 +184,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--td);margin:
 <footer style="background:var(--pg3);padding:28px 0;text-align:center;">
   <div class="container">
     <div style="display:flex;align-items:center;justify-content:center;gap:18px;flex-wrap:wrap;margin-bottom:12px;">
-      <?php foreach([['Trang chủ',$base_pub.'/index.php'],['Vị trí TT',$base_pub.'/internships.php'],['Giới thiệu',$base_pub.'/about.php'],['Liên hệ',$base_pub.'/contact.php'],['Đăng nhập',$base_sys.'/auth/login.php']] as [$l,$u]):?>
+      <?php foreach([['Trang chủ',$base_pub.'/index.php'],['Vị trí TT',$base_pub.'/internships.php'],['Giới thiệu',$base_pub.'/about.php'],['Đăng nhập',$base_sys.'/auth/login.php']] as [$l,$u]):?>
       <a href="<?=$u?>" style="color:rgba(255,255,255,.55);font-size:.8rem;transition:color .15s;" onmouseover="this.style.color='var(--sm)'" onmouseout="this.style.color='rgba(255,255,255,.55)'"><?=$l?></a>
       <?php endforeach;?>
     </div>
